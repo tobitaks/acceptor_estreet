@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "eStreet New Order Alarm",
+  "version": "1.0",
+  "description": "Alerts when new orders appear on eStreet Appraisal dashboard",
+  "permissions": ["notifications", "storage", "tabs", "offscreen"],
+  "host_permissions": ["https://estreetamc.spurams.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://estreetamc.spurams.com/AppraiserDashboard.aspx*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
