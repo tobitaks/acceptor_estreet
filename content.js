@@ -1,11 +1,32 @@
 let alerted = false;
 
 function randomInterval() {
-  return (5 + Math.floor(Math.random() * 6)) * 1000;
+  return 500;
 }
 
 function playAlarm() {
   chrome.runtime.sendMessage({ type: 'PLAY_AUDIO_ALERT' });
+}
+
+function triggerPostback() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: 'TRIGGER_NEW_ORDERS_POSTBACK' }, (resp) => {
+      resolve(resp);
+    });
+  });
+}
+
+async function waitForOrdersGrid(maxMs = 3000, intervalMs = 50) {
+  const start = Date.now();
+  let grid = null;
+  while (Date.now() - start < maxMs) {
+    grid = document.getElementById('ctl00_cphBody_grdNewOrders');
+    if (grid && grid.querySelector('a[href*="ApprID="]')) {
+      return grid;
+    }
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  return grid;
 }
 
 async function extractNewOrders() {
@@ -14,11 +35,11 @@ async function extractNewOrders() {
     console.warn('[eStreet] new orders link not found in DOM');
     return [];
   }
-  link.click();
-  await new Promise(r => setTimeout(r, 2500));
-  const grid = document.getElementById('ctl00_cphBody_grdNewOrders');
+  // CSP blocks javascript: URL navigation — call __doPostBack in MAIN world via background
+  await triggerPostback();
+  const grid = await waitForOrdersGrid();
   if (!grid) {
-    console.warn('[eStreet] grdNewOrders not in DOM after click');
+    console.warn('[eStreet] grdNewOrders not in DOM after postback');
     return [];
   }
   const rows = grid.querySelectorAll('tr');
@@ -99,7 +120,12 @@ async function checkOrders() {
       console.warn('[eStreet] extension reloaded — stopping. Refresh page to resume.');
       return;
     }
-    console.error('[eStreet] error:', e);
+    if (e?.message === 'Failed to fetch') {
+      // Transient: tab suspended, network blip, or session expired. Skip & retry next tick.
+      console.warn('[eStreet] fetch failed (transient), retrying next tick');
+    } else {
+      console.error('[eStreet] error:', e);
+    }
   }
 
   setTimeout(checkOrders, randomInterval());

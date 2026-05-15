@@ -3,7 +3,7 @@
   "name": "eStreet New Order Alarm",
   "version": "1.0",
   "description": "Alerts when new orders appear on eStreet Appraisal dashboard",
-  "permissions": ["notifications", "storage", "tabs", "offscreen"],
+  "permissions": ["notifications", "storage", "tabs", "offscreen", "scripting"],
   "host_permissions": ["https://estreetamc.spurams.com/*"],
   "content_scripts": [
     {

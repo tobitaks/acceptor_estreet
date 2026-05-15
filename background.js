@@ -148,7 +148,24 @@ async function playAlarm() {
   chrome.runtime.sendMessage({ type: 'PLAY_ALARM' });
 }
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'TRIGGER_NEW_ORDERS_POSTBACK' && sender.tab?.id) {
+    chrome.scripting.executeScript({
+      target: { tabId: sender.tab.id },
+      world: 'MAIN',
+      func: () => {
+        // chrome.scripting wraps injected funcs in strict mode. ASP.NET MS AJAX
+        // walks call stack via arguments.caller — any strict frame above
+        // __doPostBack throws TypeError on .arguments access.
+        // Fix: setTimeout schedules Function-created (non-strict) callback to
+        // run on a fresh stack with NO strict ancestor frames.
+        setTimeout(Function("__doPostBack('ctl00$cphBody$lnkShowNewOrders', '')"), 0);
+      }
+    }).then(() => sendResponse({ ok: true }))
+      .catch(e => sendResponse({ ok: false, error: e.message }));
+    return true; // async response
+  }
+
   if (msg.type === 'START') {
     chrome.tabs.create({ url: DASHBOARD_URL, active: true }, (tab) => {
       chrome.storage.local.set({
