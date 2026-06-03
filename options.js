@@ -7,6 +7,38 @@ const statSuccess  = document.getElementById('stat-success');
 const statUnavail  = document.getElementById('stat-unavail');
 const statFail     = document.getElementById('stat-fail');
 
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderDiag(d) {
+  if (!d) return '<span style="color:#bbb">—</span>';
+  const line = (k, v) => `<span class="k">${k}:</span> ${escapeHtml(v)}`;
+  const text = [
+    ...(d.note ? [line('NOTE', d.note), ''] : []),
+    line('GET status', d.getStatus),
+    line('GET url', d.getUrl),
+    line('GET redirected', d.getRedirected),
+    line('GET title', d.getTitle),
+    line('viewstate found', d.hadViewState),
+    line('fields', (d.getFields || []).join(', ')),
+    '',
+    line('POST status', d.postStatus),
+    line('POST url', d.postUrl),
+    line('POST redirected', d.postRedirected),
+    line('POST title', d.postTitle),
+    '',
+    `<span class="k">GET snippet:</span>\n${escapeHtml(d.getSnippet)}`,
+    '',
+    `<span class="k">POST snippet:</span>\n${escapeHtml(d.postSnippet)}`
+  ].join('\n');
+  return `<details class="diag"><summary>view</summary><pre class="diag-pre">${text}</pre></details>`;
+}
+
 function render(entries) {
   const log = entries || [];
 
@@ -47,6 +79,7 @@ function render(entries) {
         <td>${status}</td>
         <td class="url-cell">${urlCell}</td>
         <td class="time-cell">${time}</td>
+        <td>${renderDiag(e.diag)}</td>
       </tr>
     `;
   }).join('');
@@ -60,6 +93,7 @@ function render(entries) {
           <th>Status</th>
           <th>Redirect URL</th>
           <th>Time</th>
+          <th>Diag</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -78,7 +112,9 @@ function renderDetections(entries) {
       year: 'numeric', month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
-    const ids = (e.orders || []).map(o => o.apprId).join(', ') || '—';
+    const usedFallback = (e.orders || []).some(o => o.fromFallback);
+    const ids = ((e.orders || []).map(o => o.apprId).join(', ') || '—')
+      + (usedFallback ? ' <span style="color:#E65100;font-size:11px">(regex fallback)</span>' : '');
     const filteredIds = (e.filtered || []).map(o => o.apprId).join(', ') || 'none';
     return `
       <tr>

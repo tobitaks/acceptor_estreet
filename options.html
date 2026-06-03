@@ -84,6 +84,28 @@
     .url-cell a { color: #1565C0; text-decoration: none; }
     .url-cell a:hover { text-decoration: underline; }
     .time-cell { color: #777; font-size: 12px; white-space: nowrap; }
+    details.diag summary {
+      cursor: pointer;
+      color: #1565C0;
+      font-size: 12px;
+      user-select: none;
+    }
+    details.diag summary:hover { text-decoration: underline; }
+    .diag-pre {
+      margin-top: 8px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      padding: 12px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 360px;
+      overflow: auto;
+    }
+    .diag-pre .k { color: #569cd6; }
     .stats {
       display: flex;
       gap: 32px;

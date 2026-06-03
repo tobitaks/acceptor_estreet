@@ -18,6 +18,24 @@ function extractApprIds(html) {
   return [...new Set(ids)];
 }
 
+// DIAGNOSTIC: strip an HTML response to readable text + pull <title>.
+// Used to capture WHY an accept lands on 'failed' (validation errors, required
+// fields, session expiry, or the real success marker). Remove once flow verified.
+function htmlToText(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractTitle(html) {
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+}
+
 async function fetchNewOrdersHtml() {
   // GET dashboard for fresh viewstate
   const dashRes = await fetch(DASHBOARD_URL, { credentials: 'include' });
@@ -64,7 +82,35 @@ async function acceptOrder(apprId, itemText = '') {
   const viewState    = extractInput(formHtml, '__VIEWSTATE');
   const viewStateGen = extractInput(formHtml, '__VIEWSTATEGENERATOR');
   const eventValid   = extractInput(formHtml, '__EVENTVALIDATION');
-  if (!viewState) throw new Error(`no __VIEWSTATE on accept page for ${apprId}`);
+
+  // DIAGNOSTIC: capture the GET accept-page state before we POST
+  const getDiag = {
+    getStatus: formRes.status,
+    getUrl: formRes.url,
+    getRedirected: formRes.redirected,
+    hadViewState: !!viewState,
+    getTitle: extractTitle(formHtml),
+    // list every form field name on the page — reveals required inputs we may be omitting
+    getFields: [...formHtml.matchAll(/name="([^"]+)"/g)].map(m => m[1]).filter((v, i, a) => a.indexOf(v) === i),
+    getSnippet: htmlToText(formHtml).slice(0, 800)
+  };
+
+  if (!viewState) {
+    // No viewstate = accept page didn't render (session expired / redirect to login).
+    // Log to UI instead of throwing silently so it shows in options Diag.
+    console.warn(`[eStreet bg] no __VIEWSTATE on accept page for ${apprId}`, getDiag);
+    await logAccepted({
+      apprId,
+      itemText,
+      status: formRes.status,
+      finalUrl: formRes.url,
+      success: false,
+      outcome: 'failed',
+      diag: { ...getDiag, note: 'no __VIEWSTATE on accept page — POST never sent' },
+      timestamp: new Date().toISOString()
+    });
+    return { apprId, status: formRes.status, finalUrl: formRes.url, success: false, outcome: 'failed' };
+  }
 
   const params = new URLSearchParams();
   params.set('__EVENTTARGET', '');
@@ -85,7 +131,22 @@ async function acceptOrder(apprId, itemText = '') {
   const success = res.status === 200 && /ViewOrder\.aspx/i.test(res.url);
   const unavailable = /no longer available/i.test(body);
   const outcome = success ? 'accepted' : (unavailable ? 'unavailable' : 'failed');
+
+  // DIAGNOSTIC: capture the POST result so we can see why 'failed' happens
+  const diag = {
+    ...getDiag,
+    postStatus: res.status,
+    postUrl: res.url,
+    postRedirected: res.redirected,
+    postTitle: extractTitle(body),
+    postSnippet: htmlToText(body).slice(0, 1500)
+  };
+
   console.log(`[eStreet bg] ${outcome} ${apprId} -> status ${res.status}, final url:`, res.url);
+  if (outcome !== 'accepted') {
+    console.warn(`[eStreet bg] NON-ACCEPT DIAG ${apprId}:`, diag);
+  }
+
   await logAccepted({
     apprId,
     itemText,
@@ -93,6 +154,7 @@ async function acceptOrder(apprId, itemText = '') {
     finalUrl: res.url,
     success,
     outcome,
+    diag: outcome !== 'accepted' ? diag : undefined,
     timestamp: new Date().toISOString()
   });
   return { apprId, status: res.status, finalUrl: res.url, success, outcome };
