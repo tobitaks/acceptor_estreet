@@ -95,6 +95,24 @@ async function acceptOrder(apprId, itemText = '') {
     getSnippet: htmlToText(formHtml).slice(0, 800)
   };
 
+  if (/no longer available/i.test(formHtml)) {
+    // Order taken before our GET — accept form not rendered (no btnSubmit).
+    // POSTing the shell viewstate anyway lands on Error.aspx ("unexpected error")
+    // and got mislabeled 'failed'. Classify correctly + skip the wasted POST.
+    console.log(`[eStreet bg] unavailable ${apprId} (taken before GET)`);
+    await logAccepted({
+      apprId,
+      itemText,
+      status: formRes.status,
+      finalUrl: formRes.url,
+      success: false,
+      outcome: 'unavailable',
+      diag: { ...getDiag, note: 'order already taken at GET — POST skipped' },
+      timestamp: new Date().toISOString()
+    });
+    return { apprId, status: formRes.status, finalUrl: formRes.url, success: false, outcome: 'unavailable' };
+  }
+
   if (!viewState) {
     // No viewstate = accept page didn't render (session expired / redirect to login).
     // Log to UI instead of throwing silently so it shows in options Diag.
