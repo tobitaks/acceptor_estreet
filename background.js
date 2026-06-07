@@ -248,6 +248,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'START') {
     chrome.tabs.create({ url: DASHBOARD_URL, active: true }, (tab) => {
+      // Prevent Chrome memory-saver from discarding the monitored tab
+      // (discard kills the content script => monitoring dies silently)
+      chrome.tabs.update(tab.id, { autoDiscardable: false }, () => void chrome.runtime.lastError);
       chrome.storage.local.set({
         monitorState: { monitoring: true, tabId: tab.id, count: 0, lastChecked: null }
       });
@@ -271,7 +274,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         monitorState: {
           ...monitorState,
           count: msg.count,
-          lastChecked: msg.lastChecked
+          lastChecked: msg.lastChecked,
+          sessionLost: !!msg.sessionLost
         }
       });
     });

@@ -1,6 +1,8 @@
 const DASHBOARD_URL = 'https://estreetamc.spurams.com/AppraiserDashboard.aspx';
 
-let alerted = false;
+let lastCount = 0;        // re-arm on count CHANGE, not only 0->N
+let lastExtractAt = 0;    // periodic re-extract guard while count > 0
+let lastSessionAlarm = 0; // throttle logged-out alarm
 
 function pollInterval() {
   // 200-300ms jitter: faster detection than fixed 500ms, jitter avoids fixed-pattern fingerprint
@@ -72,16 +74,22 @@ async function extractNewOrders(dashHtml) {
   }
 
   // FALLBACK: grid parse found nothing (MS-AJAX delta response / layout change).
-  // Regex raw response for ApprID so we don't silently miss the order.
+  // Regex ONLY the grdNewOrders table region — never the whole page: the dashboard
+  // also lists order history with ApprID= links, and a whole-page regex once grabbed
+  // 30 stale/own orders. If the grid region isn't in the response, there are no new
+  // orders (count span was stale, e.g. right after our own accept) — return empty.
   // No itemText => filterOrdersByType only keeps these when filter is 'both'
   // (exterior/interior can't be classified without the type cell, so they're skipped — safe).
   if (orders.length === 0) {
-    const ids = [...new Set([...html.matchAll(/ApprID=(\d+)/g)].map(m => m[1]))];
-    if (ids.length) {
-      console.warn(`[eStreet] grid parse empty — regex fallback found ${ids.length} id(s):`, ids);
-      for (const apprId of ids) orders.push({ apprId, itemText: '', fromFallback: true });
+    const gridRegion = html.match(/grdNewOrders[\s\S]*?<\/table>/i);
+    if (gridRegion) {
+      const ids = [...new Set([...gridRegion[0].matchAll(/ApprID=(\d+)/g)].map(m => m[1]))];
+      if (ids.length) {
+        console.warn(`[eStreet] grid parse empty — regex fallback found ${ids.length} id(s) in grid region:`, ids);
+        for (const apprId of ids) orders.push({ apprId, itemText: '', fromFallback: true });
+      }
     } else {
-      console.warn('[eStreet] no ApprIDs in postback response (grid + regex both empty)');
+      console.warn('[eStreet] grdNewOrders not in postback response — stale count, no new orders');
     }
   }
 
@@ -115,15 +123,29 @@ async function checkOrders() {
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const span = doc.getElementById('ctl00_cphBody_lblShowNewOrders');
+    const sessionLost = !span;
     const count = span ? parseInt(span.textContent.trim(), 10) : 0;
     const lastChecked = new Date().toISOString();
     console.log(`Orders: ${count}`);
 
-    chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', count, lastChecked });
+    chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', count, lastChecked, sessionLost });
 
-    if (count > 0 && !alerted) {
-      alerted = true;
-      playAlarm();
+    if (sessionLost) {
+      // Count span missing from dashboard response = almost certainly logged out
+      // (fetch followed redirect to login page). Alarm so unattended monitoring
+      // doesn't die silently. Throttled to once per 60s.
+      if (Date.now() - lastSessionAlarm > 60000) {
+        lastSessionAlarm = Date.now();
+        console.warn('[eStreet] count span missing — logged out? Re-login in the tab.');
+        playAlarm();
+      }
+    } else if (count > 0 && (count !== lastCount || Date.now() - lastExtractAt > 10000)) {
+      // Trigger on ANY count change (not just 0->N): catches new orders arriving
+      // while an unaccepted (filtered-out) order keeps count > 0. The 10s periodic
+      // re-extract guards same-count swaps (one taken + one arrived between polls).
+      // Safe to re-extract: bg attemptedApprIds dedups, no double-accept possible.
+      if (count > lastCount) playAlarm(); // alarm only on arrivals, not competitor takes
+      lastExtractAt = Date.now();
       const orders = await extractNewOrders(html);
       const { acceptType = 'both' } = await chrome.storage.local.get('acceptType');
       const filtered = filterOrdersByType(orders, acceptType);
@@ -139,9 +161,7 @@ async function checkOrders() {
       }
     }
 
-    if (count === 0) {
-      alerted = false;
-    }
+    lastCount = count;
   } catch (e) {
     if (e?.message?.includes('Extension context invalidated')) {
       console.warn('[eStreet] extension reloaded — stopping. Refresh page to resume.');

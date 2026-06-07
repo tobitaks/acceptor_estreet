@@ -13,7 +13,14 @@ function render(state) {
   startBtn.disabled = on;
   stopBtn.disabled  = !on;
 
-  if (on && state.lastChecked) {
+  if (on && state.sessionLost) {
+    countEl.textContent = '!';
+    countEl.className   = 'count alert';
+    labelEl.textContent = 'LOGGED OUT — re-login in the tab';
+    lastEl.textContent  = state.lastChecked
+      ? `Last checked: ${new Date(state.lastChecked).toLocaleTimeString()}`
+      : '';
+  } else if (on && state.lastChecked) {
     const c = state.count ?? 0;
     countEl.textContent = c;
     countEl.className   = 'count' + (c > 0 ? ' alert' : '');
