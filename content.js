@@ -164,7 +164,7 @@ async function checkOrders() {
       if (count > lastCount) playAlarm(); // alarm only on arrivals, not competitor takes
       lastExtractAt = Date.now();
       const orders = await extractNewOrders(html);
-      const { acceptType = 'both', keywordFilter = '' } =
+      const { acceptType = 'exterior', keywordFilter = '' } =
         await chrome.storage.local.get(['acceptType', 'keywordFilter']);
       const filtered = filterByKeyword(filterOrdersByType(orders, acceptType), keywordFilter);
       chrome.runtime.sendMessage({

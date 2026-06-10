@@ -165,7 +165,7 @@ clearDetectionsBtn.addEventListener('click', () => {
 });
 
 // Accept-type filter
-chrome.storage.local.get('acceptType', ({ acceptType = 'both' }) => {
+chrome.storage.local.get('acceptType', ({ acceptType = 'exterior' }) => {
   const radio = document.querySelector(`input[name="acceptType"][value="${acceptType}"]`);
   if (radio) radio.checked = true;
 });
