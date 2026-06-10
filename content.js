@@ -1,8 +1,9 @@
 const DASHBOARD_URL = 'https://estreetamc.spurams.com/AppraiserDashboard.aspx';
 
-let lastCount = 0;        // re-arm on count CHANGE, not only 0->N
-let lastExtractAt = 0;    // periodic re-extract guard while count > 0
-let lastSessionAlarm = 0; // throttle logged-out alarm
+let lastCount = 0;          // detect count CHANGE
+let lastExtractAt = 0;      // safety re-extract timer (catches same-count swaps)
+let lastSessionAlarm = 0;   // throttle logged-out alarm
+const processedIds = new Set(); // ApprIDs already detected this session — never re-log/re-act
 
 function pollInterval() {
   // 200-300ms jitter: faster detection than fixed 500ms, jitter avoids fixed-pattern fingerprint
@@ -156,27 +157,39 @@ async function checkOrders() {
         console.warn('[eStreet] count span missing — logged out? Re-login in the tab.');
         playAlarm();
       }
-    } else if (count > 0 && (count !== lastCount || Date.now() - lastExtractAt > 10000)) {
-      // Trigger on ANY count change (not just 0->N): catches new orders arriving
-      // while an unaccepted (filtered-out) order keeps count > 0. The 10s periodic
-      // re-extract guards same-count swaps (one taken + one arrived between polls).
-      // Safe to re-extract: bg attemptedApprIds dedups, no double-accept possible.
-      if (count > lastCount) playAlarm(); // alarm only on arrivals, not competitor takes
+    } else if (count > 0 && (count !== lastCount || Date.now() - lastExtractAt > 60000)) {
+      // Extract only when the count CHANGES (or a 60s safety pass for same-count
+      // swaps). Then act ONLY on ApprIDs not seen before — a filtered-out order
+      // (wrong city/type) keeps count > 0 but is already in processedIds, so it's
+      // not re-logged or re-processed. Stops the log spam + needless postbacks.
       lastExtractAt = Date.now();
       const orders = await extractNewOrders(html);
-      const { acceptType = 'exterior', keywordFilter = '' } =
-        await chrome.storage.local.get(['acceptType', 'keywordFilter']);
-      const filtered = filterByKeyword(filterOrdersByType(orders, acceptType), keywordFilter);
-      chrome.runtime.sendMessage({
-        type: 'LOG_DETECTION',
-        count,
-        orders,
-        filtered,
-        acceptType
-      });
-      if (filtered.length) {
-        chrome.runtime.sendMessage({ type: 'AUTO_ACCEPT_IDS', orders: filtered });
+      const newOrders = orders.filter(o => !processedIds.has(o.apprId));
+
+      if (newOrders.length) {
+        newOrders.forEach(o => processedIds.add(o.apprId));
+        if (count > lastCount) playAlarm(); // alarm only on genuine arrivals
+        const { acceptType = 'exterior', keywordFilter = '' } =
+          await chrome.storage.local.get(['acceptType', 'keywordFilter']);
+        const filtered = filterByKeyword(filterOrdersByType(newOrders, acceptType), keywordFilter);
+        chrome.runtime.sendMessage({
+          type: 'LOG_DETECTION',
+          count,
+          orders: newOrders,
+          filtered,
+          acceptType
+        });
+        if (filtered.length) {
+          chrome.runtime.sendMessage({ type: 'AUTO_ACCEPT_IDS', orders: filtered });
+        }
       }
+    }
+
+    // Cap processedIds so a long session doesn't grow it unbounded
+    if (processedIds.size > 500) {
+      const trimmed = [...processedIds].slice(-300);
+      processedIds.clear();
+      trimmed.forEach(id => processedIds.add(id));
     }
 
     lastCount = count;
