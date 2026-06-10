@@ -34,10 +34,26 @@ function render(state) {
   }
 }
 
+const fTypeEl    = document.getElementById('f-type');
+const fKeywordEl = document.getElementById('f-keyword');
+
+const TYPE_LABEL = { both: 'Both (Ext + Int + VS)', exterior: 'Exterior only', interior: 'Interior only' };
+
+function renderFilters(acceptType = 'exterior', keywordFilter = '') {
+  fTypeEl.textContent    = TYPE_LABEL[acceptType] || acceptType;
+  fKeywordEl.textContent = keywordFilter.trim() || 'any (no filter)';
+}
+
 chrome.storage.local.get('monitorState', ({ monitorState }) => render(monitorState));
+chrome.storage.local.get(['acceptType', 'keywordFilter'], ({ acceptType, keywordFilter }) =>
+  renderFilters(acceptType, keywordFilter));
 
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.monitorState) render(changes.monitorState.newValue);
+  if (changes.acceptType || changes.keywordFilter) {
+    chrome.storage.local.get(['acceptType', 'keywordFilter'], ({ acceptType, keywordFilter }) =>
+      renderFilters(acceptType, keywordFilter));
+  }
 });
 
 startBtn.addEventListener('click', () => {

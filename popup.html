@@ -60,6 +60,16 @@
     .count.alert { color: #C62828; }
     .label { font-size: 12px; color: #777; }
     .last-checked { font-size: 11px; color: #aaa; margin-bottom: 14px; }
+    .filter-box {
+      background: #f5f6f8;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #555;
+      line-height: 1.5;
+    }
+    .filter-box .fk { color: #999; }
+    .filter-box .fv { color: #1565C0; font-weight: 600; }
     .options-link {
       display: block;
       margin-top: 12px;
@@ -91,6 +101,11 @@
     <span class="label" id="label"></span>
   </div>
   <div class="last-checked" id="last-checked"></div>
+
+  <div class="filter-box">
+    <div><span class="fk">Type:</span> <span class="fv" id="f-type">–</span></div>
+    <div><span class="fk">City/keyword:</span> <span class="fv" id="f-keyword">–</span></div>
+  </div>
 
   <button class="options-link" id="options-link">Open Settings & Logs →</button>
 
