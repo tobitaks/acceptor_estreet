@@ -69,7 +69,10 @@ async function extractNewOrders(dashHtml) {
       if (seen.has(apprId)) continue;
       seen.add(apprId);
       const itemText = cells[3].textContent.replace(/\s+/g, ' ').trim();
-      orders.push({ apprId, itemText });
+      // full row text = everything in the row (incl address/city/state if eStreet
+      // puts it in the grid) — used for the keyword filter
+      const rowText = row.textContent.replace(/\s+/g, ' ').trim();
+      orders.push({ apprId, itemText, rowText });
     }
   }
 
@@ -104,6 +107,20 @@ function filterOrdersByType(orders, acceptType) {
     if (acceptType === 'exterior') return isExt;
     if (acceptType === 'interior') return isInt;
     return true; // 'both' = accept all order types (incl VS)
+  });
+}
+
+// Keyword filter on full row text (city/state/address/anything in the grid row).
+// Comma-separated, match-ANY, case-insensitive. Blank = accept all (no filter).
+// Orders with no rowText (regex fallback) are DROPPED when a keyword is set —
+// can't verify match without the row, safer to skip than blind-accept.
+function filterByKeyword(orders, keywordFilter) {
+  const kws = (keywordFilter || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  if (!kws.length) return orders;
+  return orders.filter(o => {
+    const hay = (o.rowText || '').toLowerCase();
+    if (!hay) return false; // fallback order, no row text — skip when filtering
+    return kws.some(k => hay.includes(k));
   });
 }
 
@@ -147,8 +164,9 @@ async function checkOrders() {
       if (count > lastCount) playAlarm(); // alarm only on arrivals, not competitor takes
       lastExtractAt = Date.now();
       const orders = await extractNewOrders(html);
-      const { acceptType = 'both' } = await chrome.storage.local.get('acceptType');
-      const filtered = filterOrdersByType(orders, acceptType);
+      const { acceptType = 'both', keywordFilter = '' } =
+        await chrome.storage.local.get(['acceptType', 'keywordFilter']);
+      const filtered = filterByKeyword(filterOrdersByType(orders, acceptType), keywordFilter);
       chrome.runtime.sendMessage({
         type: 'LOG_DETECTION',
         count,

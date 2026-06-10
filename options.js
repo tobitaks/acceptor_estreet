@@ -177,3 +177,12 @@ document.querySelectorAll('input[name="acceptType"]').forEach((r) => {
     }
   });
 });
+
+// City / keyword filter
+const keywordInput = document.getElementById('keyword-filter');
+chrome.storage.local.get('keywordFilter', ({ keywordFilter = '' }) => {
+  keywordInput.value = keywordFilter;
+});
+keywordInput.addEventListener('input', (e) => {
+  chrome.storage.local.set({ keywordFilter: e.target.value.trim() });
+});

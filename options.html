@@ -207,6 +207,14 @@
         </div>
         <p class="form-help">Filter is matched against the order's <strong>Item(s)</strong> column text (e.g. <code>BPO-Exterior</code>, <code>BPO Interior 5 day</code>).</p>
       </div>
+
+      <div class="form-group" style="margin-top:20px;">
+        <label class="form-label" for="keyword-filter">City / keyword filter</label>
+        <input type="text" id="keyword-filter"
+          placeholder="e.g. CA, LONG BEACH, 90815  (blank = accept all)"
+          style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;">
+        <p class="form-help">Comma-separated, matches <strong>any</strong>, case-insensitive. Checked against the whole order row (address/city/state if eStreet shows it in the list). Applied <em>after</em> the type filter. Leave blank to accept all.</p>
+      </div>
     </div>
   </div>
 
