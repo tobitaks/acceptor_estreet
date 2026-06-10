@@ -3,6 +3,7 @@ const DASHBOARD_URL = 'https://estreetamc.spurams.com/AppraiserDashboard.aspx';
 let lastCount = 0;          // detect count CHANGE
 let lastExtractAt = 0;      // safety re-extract timer (catches same-count swaps)
 let lastSessionAlarm = 0;   // throttle logged-out alarm
+let lastHeartbeat = 0;      // 30-min alive stamp
 const processedIds = new Set(); // ApprIDs already detected this session — never re-log/re-act
 
 function pollInterval() {
@@ -147,6 +148,17 @@ async function checkOrders() {
     console.log(`Orders: ${count}`);
 
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', count, lastChecked, sessionLost });
+
+    // Heartbeat: stamp "alive" every 30 min so that after a hang/restart the last
+    // entry shows roughly when polling stopped. Fires regardless of count/sessionLost.
+    if (Date.now() - lastHeartbeat >= 30 * 60 * 1000) {
+      lastHeartbeat = Date.now();
+      const { heartbeatLog = [] } = await chrome.storage.local.get('heartbeatLog');
+      heartbeatLog.unshift({ timestamp: lastChecked, count, sessionLost });
+      if (heartbeatLog.length > 300) heartbeatLog.length = 300; // ~150 hrs
+      await chrome.storage.local.set({ heartbeatLog });
+      console.log(`[eStreet] heartbeat @ ${lastChecked}`);
+    }
 
     if (sessionLost) {
       // Count span missing from dashboard response = almost certainly logged out
