@@ -69,9 +69,11 @@ function render(entries) {
     const status = statusMap[outcome] || statusMap.failed;
     const itemText = e.itemText || '—';
     const apprUrl = `https://estreetamc.spurams.com/ViewOrder.aspx?ApprID=${e.apprId}`;
+    const address = e.address || '—';
     return `
       <tr>
         <td><a class="appr-id" href="${apprUrl}" target="_blank" rel="noopener">${e.apprId}</a></td>
+        <td>${address}</td>
         <td>${itemText}</td>
         <td>${status}</td>
         <td class="time-cell">${time}</td>
@@ -85,6 +87,7 @@ function render(entries) {
       <thead>
         <tr>
           <th>ApprID</th>
+          <th>Address</th>
           <th>Type</th>
           <th>Status</th>
           <th>Time</th>

@@ -79,6 +79,9 @@ async function acceptOrder(apprId, itemText = '') {
 
   const formRes = await fetch(acceptUrl, { credentials: 'include' });
   const formHtml = await formRes.text();
+  // Property address off the accept page (for the Accepted Orders log)
+  const addrMatch = htmlToText(formHtml).match(/Property Address\s+(.*?)\s+Borrower/i);
+  const address = addrMatch ? addrMatch[1].trim() : '';
   const viewState    = extractInput(formHtml, '__VIEWSTATE');
   const viewStateGen = extractInput(formHtml, '__VIEWSTATEGENERATOR');
   const eventValid   = extractInput(formHtml, '__EVENTVALIDATION');
@@ -103,6 +106,7 @@ async function acceptOrder(apprId, itemText = '') {
     await logAccepted({
       apprId,
       itemText,
+      address,
       status: formRes.status,
       finalUrl: formRes.url,
       success: false,
@@ -120,6 +124,7 @@ async function acceptOrder(apprId, itemText = '') {
     await logAccepted({
       apprId,
       itemText,
+      address,
       status: formRes.status,
       finalUrl: formRes.url,
       success: false,
@@ -168,6 +173,7 @@ async function acceptOrder(apprId, itemText = '') {
   await logAccepted({
     apprId,
     itemText,
+    address,
     status: res.status,
     finalUrl: res.url,
     success,
