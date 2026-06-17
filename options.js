@@ -57,7 +57,7 @@ function render(entries) {
 
   const rows = log.map(e => {
     const time = new Date(e.timestamp).toLocaleString([], {
-      year: 'numeric', month: 'short', day: 'numeric',
+      month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
     const outcome = e.outcome || (e.success ? 'accepted' : 'failed');
@@ -105,7 +105,7 @@ function renderDetections(entries) {
   }
   const rows = log.map(e => {
     const time = new Date(e.timestamp).toLocaleString([], {
-      year: 'numeric', month: 'short', day: 'numeric',
+      month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
     const usedFallback = (e.orders || []).some(o => o.fromFallback);
