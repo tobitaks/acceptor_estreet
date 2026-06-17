@@ -144,21 +144,19 @@ function renderDetections(entries) {
 
 function renderHeartbeat(entries) {
   const log = entries || [];
-  const c = document.getElementById('heartbeat-container');
+  const c = document.getElementById('last-heartbeat');
   if (!log.length) {
-    c.innerHTML = '<div class="log-empty">No heartbeats yet.</div>';
+    c.innerHTML = 'No heartbeats yet.';
     return;
   }
-  const rows = log.slice(0, 5).map(e => {
-    const time = new Date(e.timestamp).toLocaleString([], {
-      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-    const state = e.sessionLost
-      ? '<span class="status-badge fail">Logged out</span>'
-      : '<span class="status-badge success">Alive</span>';
-    return `<tr><td class="time-cell">${time}</td><td>${state}</td><td>count: ${e.count ?? '—'}</td></tr>`;
-  }).join('');
-  c.innerHTML = `<table><tbody>${rows}</tbody></table>`;
+  const e = log[0];
+  const time = new Date(e.timestamp).toLocaleString([], {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const state = e.sessionLost
+    ? '<span class="status-badge fail">Logged out</span>'
+    : '<span class="status-badge success">Alive</span>';
+  c.innerHTML = `<strong>Last heartbeat:</strong> ${time} &nbsp; ${state}`;
 }
 
 chrome.storage.local.get(['acceptedLog', 'detectionLog', 'heartbeatLog'], ({ acceptedLog, detectionLog, heartbeatLog }) => {
@@ -171,10 +169,6 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.acceptedLog)  render(changes.acceptedLog.newValue);
   if (changes.detectionLog) renderDetections(changes.detectionLog.newValue);
   if (changes.heartbeatLog) renderHeartbeat(changes.heartbeatLog.newValue);
-});
-
-document.getElementById('clear-heartbeat-btn').addEventListener('click', () => {
-  if (confirm('Clear heartbeat log?')) chrome.storage.local.set({ heartbeatLog: [] });
 });
 
 clearBtn.addEventListener('click', () => {
