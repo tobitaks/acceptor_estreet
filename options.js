@@ -188,26 +188,3 @@ clearDetectionsBtn.addEventListener('click', () => {
     chrome.storage.local.set({ detectionLog: [] });
   }
 });
-
-// Accept-type filter
-chrome.storage.local.get('acceptType', ({ acceptType = 'exterior' }) => {
-  const radio = document.querySelector(`input[name="acceptType"][value="${acceptType}"]`);
-  if (radio) radio.checked = true;
-});
-
-document.querySelectorAll('input[name="acceptType"]').forEach((r) => {
-  r.addEventListener('change', (e) => {
-    if (e.target.checked) {
-      chrome.storage.local.set({ acceptType: e.target.value });
-    }
-  });
-});
-
-// City / keyword filter
-const keywordInput = document.getElementById('keyword-filter');
-chrome.storage.local.get('keywordFilter', ({ keywordFilter = '' }) => {
-  keywordInput.value = keywordFilter;
-});
-keywordInput.addEventListener('input', (e) => {
-  chrome.storage.local.set({ keywordFilter: e.target.value.trim() });
-});

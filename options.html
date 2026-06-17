@@ -151,11 +151,35 @@
     }
     .radio-option:hover { background: #f5f6f8; }
     .radio-option input { cursor: pointer; }
+    .settings-fab {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      background: #1565C0;
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .settings-fab:hover { background: #0d47a1; }
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .header-row h1 { margin-bottom: 0; }
+    .settings-link {
+      background: #1565C0; color: #fff; padding: 8px 16px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; text-decoration: none;
+    }
+    .settings-link:hover { background: #0d47a1; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>eStreet Order Monitor — Settings</h1>
+    <div class="header-row">
+      <h1>eStreet Order Monitor</h1>
+      <a href="settings.html" class="settings-link">⚙ Settings</a>
+    </div>
 
     <div class="card">
       <h2 style="margin-bottom: 16px;">Stats</h2>
@@ -197,36 +221,9 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2 style="margin-bottom: 16px;">Controls</h2>
-      <div class="form-group">
-        <label class="form-label">Auto-accept order types</label>
-        <div class="radio-row">
-          <label class="radio-option">
-            <input type="radio" name="acceptType" value="both">
-            <span>Both (Exterior + Interior + VS)</span>
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="acceptType" value="exterior" checked>
-            <span>Exterior only</span>
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="acceptType" value="interior">
-            <span>Interior only</span>
-          </label>
-        </div>
-        <p class="form-help">Filter is matched against the order's <strong>Item(s)</strong> column text (e.g. <code>BPO-Exterior</code>, <code>BPO Interior 5 day</code>).</p>
-      </div>
-
-      <div class="form-group" style="margin-top:20px;">
-        <label class="form-label" for="keyword-filter">City / keyword filter</label>
-        <input type="text" id="keyword-filter"
-          placeholder="e.g. CA, LONG BEACH, 90815  (blank = accept all)"
-          style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;">
-        <p class="form-help">Comma-separated, matches <strong>any</strong>, case-insensitive. Checked against the whole order row (address/city/state if eStreet shows it in the list). Applied <em>after</em> the type filter. Leave blank to accept all.</p>
-      </div>
-    </div>
   </div>
+
+  <a href="settings.html" class="settings-fab" title="Settings">⚙ Settings</a>
 
   <script src="options.js"></script>
 </body>
