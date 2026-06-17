@@ -67,17 +67,13 @@ function render(entries) {
       failed:      '<span class="status-badge fail">Failed</span>'
     };
     const status = statusMap[outcome] || statusMap.failed;
-    const finalUrl = e.finalUrl || '';
-    const urlCell = finalUrl
-      ? `<a href="${finalUrl}" target="_blank" rel="noopener">${finalUrl}</a>`
-      : '—';
     const itemText = e.itemText || '—';
+    const apprUrl = `https://estreetamc.spurams.com/ViewOrder.aspx?ApprID=${e.apprId}`;
     return `
       <tr>
-        <td><span class="appr-id">${e.apprId}</span></td>
+        <td><a class="appr-id" href="${apprUrl}" target="_blank" rel="noopener">${e.apprId}</a></td>
         <td>${itemText}</td>
         <td>${status}</td>
-        <td class="url-cell">${urlCell}</td>
         <td class="time-cell">${time}</td>
         <td>${renderDiag(e.diag)}</td>
       </tr>
@@ -91,7 +87,6 @@ function render(entries) {
           <th>ApprID</th>
           <th>Type</th>
           <th>Status</th>
-          <th>Redirect URL</th>
           <th>Time</th>
           <th>Diag</th>
         </tr>
