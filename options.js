@@ -74,7 +74,6 @@ function render(entries) {
       <tr>
         <td><a class="appr-id" href="${apprUrl}" target="_blank" rel="noopener">${e.apprId}</a></td>
         <td>${address}</td>
-        <td>${itemText}</td>
         <td>${status}</td>
         <td class="time-cell">${time}</td>
         <td>${renderDiag(e.diag)}</td>
@@ -88,7 +87,6 @@ function render(entries) {
         <tr>
           <th>ApprID</th>
           <th>Address</th>
-          <th>Type</th>
           <th>Status</th>
           <th>Time</th>
           <th>Diag</th>
