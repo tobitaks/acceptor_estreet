@@ -149,7 +149,7 @@ function renderHeartbeat(entries) {
     c.innerHTML = '<div class="log-empty">No heartbeats yet.</div>';
     return;
   }
-  const rows = log.map(e => {
+  const rows = log.slice(0, 5).map(e => {
     const time = new Date(e.timestamp).toLocaleString([], {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
