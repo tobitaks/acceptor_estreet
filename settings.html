@@ -76,7 +76,7 @@
       <div class="form-group">
         <input type="text" id="keyword-filter"
           placeholder="e.g. CA, LONG BEACH, 90815  (blank = accept all)">
-        <p class="form-help">Comma-separated, matches <strong>any</strong>, case-insensitive. Checked against the whole order row (address/city/state if eStreet shows it in the list). Applied <em>after</em> the type filter. Leave blank to accept all.</p>
+        <p class="form-help">Comma-separated, matches <strong>any</strong>, case-insensitive, <strong>whole-word</strong>. Checked against the whole order row (address/city/state if eStreet shows it in the list). Whole-word means <code>GA</code> matches the state <code>GA</code> but not <code>CHATTANOOGA</code>. Applied <em>after</em> the type filter. Leave blank to accept all.</p>
       </div>
     </div>
   </div>

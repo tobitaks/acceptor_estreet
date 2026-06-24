@@ -114,15 +114,22 @@ function filterOrdersByType(orders, acceptType) {
 
 // Keyword filter on full row text (city/state/address/anything in the grid row).
 // Comma-separated, match-ANY, case-insensitive. Blank = accept all (no filter).
+// WHOLE-WORD match (\b…\b): keyword "GA" matches the state token "GA" but NOT
+// "CHATTANOOGA" — stops 2-letter state codes (CA/OR/PA/GA) colliding with city
+// substrings. Multi-word keywords ("LONG BEACH") still match as a phrase.
 // Orders with no rowText (regex fallback) are DROPPED when a keyword is set —
 // can't verify match without the row, safer to skip than blind-accept.
 function filterByKeyword(orders, keywordFilter) {
   const kws = (keywordFilter || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
   if (!kws.length) return orders;
+  const matchers = kws.map(k => {
+    const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // escape regex metachars
+    return new RegExp(`\\b${esc}\\b`, 'i');
+  });
   return orders.filter(o => {
-    const hay = (o.rowText || '').toLowerCase();
+    const hay = o.rowText || '';
     if (!hay) return false; // fallback order, no row text — skip when filtering
-    return kws.some(k => hay.includes(k));
+    return matchers.some(re => re.test(hay));
   });
 }
 
