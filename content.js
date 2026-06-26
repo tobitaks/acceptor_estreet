@@ -188,18 +188,34 @@ async function checkOrders() {
       if (newOrders.length) {
         newOrders.forEach(o => processedIds.add(o.apprId));
         if (count > lastCount) playAlarm(); // alarm only on genuine arrivals
-        const { acceptType = 'exterior', keywordFilter = '' } =
-          await chrome.storage.local.get(['acceptType', 'keywordFilter']);
+        const { acceptType = 'exterior', keywordFilter = '', acceptChance = 100 } =
+          await chrome.storage.local.get(['acceptType', 'keywordFilter', 'acceptChance']);
         const filtered = filterByKeyword(filterOrdersByType(newOrders, acceptType), keywordFilter);
+
+        // Per-order coin toss: accept ~acceptChance%, skip the rest (camouflage —
+        // a real appraiser doesn't grab 100% of orders). Skipped orders are already
+        // in processedIds (added above), so they're never re-rolled — gone for good.
+        // acceptChance default 100 = accept everything (no skipping unless user lowers it).
+        const toAccept = [];
+        const coinSkipped = [];
+        for (const o of filtered) {
+          if (Math.random() * 100 < acceptChance) toAccept.push(o);
+          else coinSkipped.push(o);
+        }
+
         chrome.runtime.sendMessage({
           type: 'LOG_DETECTION',
           count,
           orders: newOrders,
           filtered,
+          coinSkipped,
           acceptType
         });
-        if (filtered.length) {
-          chrome.runtime.sendMessage({ type: 'AUTO_ACCEPT_IDS', orders: filtered });
+        if (coinSkipped.length) {
+          chrome.runtime.sendMessage({ type: 'LOG_SKIPPED', orders: coinSkipped });
+        }
+        if (toAccept.length) {
+          chrome.runtime.sendMessage({ type: 'AUTO_ACCEPT_IDS', orders: toAccept });
         }
       }
     }

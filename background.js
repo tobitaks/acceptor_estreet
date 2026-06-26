@@ -192,6 +192,26 @@ async function logAccepted(entry) {
   await chrome.storage.local.set({ acceptedLog });
 }
 
+// Log coin-toss skips as outcome 'skipped'. Single read/write (not per-order
+// logAccepted) to avoid the unshift race when many skips land at once.
+async function logSkippedBatch(orders) {
+  if (!orders.length) return;
+  const { acceptedLog = [] } = await chrome.storage.local.get('acceptedLog');
+  const timestamp = new Date().toISOString();
+  for (const o of orders) {
+    acceptedLog.unshift({
+      apprId: o.apprId,
+      itemText: o.itemText || '',
+      address: '',
+      success: false,
+      outcome: 'skipped',
+      timestamp
+    });
+  }
+  if (acceptedLog.length > 100) acceptedLog.length = 100;
+  await chrome.storage.local.set({ acceptedLog });
+}
+
 async function logDetection(entry) {
   const { detectionLog = [] } = await chrome.storage.local.get('detectionLog');
   detectionLog.unshift(entry);
@@ -300,6 +320,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       acceptType: msg.acceptType,
       timestamp: new Date().toISOString()
     });
+  }
+
+  if (msg.type === 'LOG_SKIPPED') {
+    logSkippedBatch(msg.orders || []);
   }
 
   if (msg.type === 'AUTO_ACCEPT') {

@@ -27,3 +27,16 @@ chrome.storage.local.get('keywordFilter', ({ keywordFilter = '' }) => {
 keywordInput.addEventListener('input', (e) => {
   chrome.storage.local.set({ keywordFilter: e.target.value.trim() }, () => flash('saved-keyword'));
 });
+
+// Accept-chance coin toss (camouflage). Default 100 = accept all.
+const chanceInput = document.getElementById('accept-chance');
+const chanceVal   = document.getElementById('accept-chance-val');
+chrome.storage.local.get('acceptChance', ({ acceptChance = 100 }) => {
+  chanceInput.value     = acceptChance;
+  chanceVal.textContent = `${acceptChance}%`;
+});
+chanceInput.addEventListener('input', (e) => {
+  const v = parseInt(e.target.value, 10);
+  chanceVal.textContent = `${v}%`;
+  chrome.storage.local.set({ acceptChance: v }, () => flash('saved-chance'));
+});

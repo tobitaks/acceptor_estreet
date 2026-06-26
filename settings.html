@@ -79,6 +79,17 @@
         <p class="form-help">Comma-separated, matches <strong>any</strong>, case-insensitive, <strong>whole-word</strong>. Checked against the whole order row (address/city/state if eStreet shows it in the list). Whole-word means <code>GA</code> matches the state <code>GA</code> but not <code>CHATTANOOGA</code>. Applied <em>after</em> the type filter. Leave blank to accept all.</p>
       </div>
     </div>
+
+    <div class="card">
+      <h2 style="margin-bottom: 16px;">Accept chance (camouflage) <span class="saved-note" id="saved-chance">Saved ✓</span></h2>
+      <div class="form-group">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <input type="range" id="accept-chance" min="0" max="100" step="5" value="100" style="flex:1;">
+          <span id="accept-chance-val" style="font-weight:700; font-size:16px; color:#1565C0; min-width:48px; text-align:right;">100%</span>
+        </div>
+        <p class="form-help">Per-order coin toss <em>after</em> the filters above. At <code>100%</code> every matching order is accepted (no skipping). Lower it (e.g. <code>70%</code>) and each order has that chance to be accepted, the rest are <strong>skipped on purpose</strong> — a 100% acceptance rate looks like a bot. Skipped orders are gone for good (not retried). Skips show in the log as <strong>Skipped (coin)</strong>.</p>
+      </div>
+    </div>
   </div>
 
   <script src="settings.js"></script>

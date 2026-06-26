@@ -6,6 +6,31 @@ const statTotal    = document.getElementById('stat-total');
 const statSuccess  = document.getElementById('stat-success');
 const statUnavail  = document.getElementById('stat-unavail');
 const statFail     = document.getElementById('stat-fail');
+const statSkipped  = document.getElementById('stat-skipped');
+
+const PAGE_SIZE = 15;
+let acceptedData = [];
+let detectData   = [];
+let acceptedPage = 1;
+let detectPage   = 1;
+
+// Prev/Next pager markup. Returns '' when only one page (nothing to page).
+function pager(page, total, action) {
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (pages <= 1) return '';
+  return `
+    <div class="pager">
+      <button class="pg-btn" data-action="${action}" data-dir="prev" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
+      <span class="pg-info">Page ${page} of ${pages}</span>
+      <button class="pg-btn" data-action="${action}" data-dir="next" ${page >= pages ? 'disabled' : ''}>Next →</button>
+    </div>`;
+}
+
+// Clamp a page into [1, pages] (data can shrink on Clear / cap).
+function clampPage(page, total) {
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  return Math.min(Math.max(page, 1), pages);
+}
 
 function escapeHtml(s) {
   return String(s ?? '')
@@ -40,22 +65,30 @@ function renderDiag(d) {
 }
 
 function render(entries) {
-  const log = entries || [];
+  acceptedData = entries || [];
+  const log = acceptedData;
 
-  statTotal.textContent   = log.length;
+  // 'skipped' (coin-toss) entries are NOT accept attempts — exclude from total
+  const attempts = log.filter(e => e.outcome !== 'skipped');
+  statTotal.textContent   = attempts.length;
   statSuccess.textContent = log.filter(e => e.outcome === 'accepted' || (e.success && !e.outcome)).length;
   statUnavail.textContent = log.filter(e => e.outcome === 'unavailable').length;
   statFail.textContent    = log.filter(e => {
     if (e.outcome) return e.outcome === 'failed';
     return !e.success;
   }).length;
+  if (statSkipped) statSkipped.textContent = log.filter(e => e.outcome === 'skipped').length;
 
   if (!log.length) {
     logContainer.innerHTML = '<div class="log-empty">No orders accepted yet.</div>';
     return;
   }
 
-  const rows = log.map(e => {
+  acceptedPage = clampPage(acceptedPage, log.length);
+  const start = (acceptedPage - 1) * PAGE_SIZE;
+  const pageRows = log.slice(start, start + PAGE_SIZE);
+
+  const rows = pageRows.map(e => {
     const time = new Date(e.timestamp).toLocaleString([], {
       month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -64,7 +97,8 @@ function render(entries) {
     const statusMap = {
       accepted:    '<span class="status-badge success">Accepted</span>',
       unavailable: '<span class="status-badge unavailable">Already Taken</span>',
-      failed:      '<span class="status-badge fail">Failed</span>'
+      failed:      '<span class="status-badge fail">Failed</span>',
+      skipped:     '<span class="status-badge skipped">Skipped (coin)</span>'
     };
     const status = statusMap[outcome] || statusMap.failed;
     const itemText = e.itemText || '—';
@@ -94,16 +128,20 @@ function render(entries) {
       </thead>
       <tbody>${rows}</tbody>
     </table>
-  `;
+  ` + pager(acceptedPage, log.length, 'accepted');
 }
 
 function renderDetections(entries) {
-  const log = entries || [];
+  detectData = entries || [];
+  const log = detectData;
   if (!log.length) {
     detectContainer.innerHTML = '<div class="log-empty">No detections yet.</div>';
     return;
   }
-  const rows = log.map(e => {
+  detectPage = clampPage(detectPage, log.length);
+  const start = (detectPage - 1) * PAGE_SIZE;
+  const pageRows = log.slice(start, start + PAGE_SIZE);
+  const rows = pageRows.map(e => {
     const time = new Date(e.timestamp).toLocaleString([], {
       month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -112,12 +150,14 @@ function renderDetections(entries) {
     const ids = ((e.orders || []).map(o => o.apprId).join(', ') || '—')
       + (usedFallback ? ' <span style="color:#E65100;font-size:11px">(regex fallback)</span>' : '');
     const filteredIds = (e.filtered || []).map(o => o.apprId).join(', ') || 'none';
+    const skippedIds  = (e.coinSkipped || []).map(o => o.apprId).join(', ') || '—';
     return `
       <tr>
         <td><strong>${e.count}</strong></td>
         <td class="url-cell">${ids}</td>
         <td>${e.acceptType || '—'}</td>
         <td class="url-cell">${filteredIds}</td>
+        <td class="url-cell">${skippedIds}</td>
         <td class="time-cell">${time}</td>
       </tr>
     `;
@@ -130,12 +170,13 @@ function renderDetections(entries) {
           <th>ApprIDs Found</th>
           <th>Filter</th>
           <th>Auto-accept Sent</th>
+          <th>Skipped (coin)</th>
           <th>Time</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
-  `;
+  ` + pager(detectPage, log.length, 'detect');
 }
 
 function renderHeartbeat(entries) {
@@ -177,4 +218,41 @@ clearDetectionsBtn.addEventListener('click', () => {
   if (confirm('Clear all detection logs?')) {
     chrome.storage.local.set({ detectionLog: [] });
   }
+});
+
+// Pager clicks (event-delegated — buttons are re-created each render)
+logContainer.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.pg-btn');
+  if (!btn || btn.dataset.action !== 'accepted') return;
+  acceptedPage += btn.dataset.dir === 'next' ? 1 : -1;
+  render(acceptedData);
+});
+detectContainer.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.pg-btn');
+  if (!btn || btn.dataset.action !== 'detect') return;
+  detectPage += btn.dataset.dir === 'next' ? 1 : -1;
+  renderDetections(detectData);
+});
+
+// Download Accepted Orders log as CSV (full log, not just current page)
+function csvCell(v) {
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+document.getElementById('download-btn').addEventListener('click', () => {
+  const log = acceptedData || [];
+  if (!log.length) { alert('No accepted orders to download.'); return; }
+  const header = ['ApprID', 'Address', 'Item', 'Outcome', 'Timestamp'];
+  const lines = [header.join(',')];
+  for (const e of log) {
+    const outcome = e.outcome || (e.success ? 'accepted' : 'failed');
+    lines.push([e.apprId, e.address || '', e.itemText || '', outcome, e.timestamp || ''].map(csvCell).join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `accepted-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 });
