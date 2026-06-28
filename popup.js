@@ -36,23 +36,29 @@ function render(state) {
 
 const fTypeEl    = document.getElementById('f-type');
 const fKeywordEl = document.getElementById('f-keyword');
+const fExcludeEl = document.getElementById('f-exclude');
+const fChanceEl  = document.getElementById('f-chance');
 
 const TYPE_LABEL = { both: 'Both (Ext + Int + VS)', exterior: 'Exterior only', interior: 'Interior only' };
 
-function renderFilters(acceptType = 'exterior', keywordFilter = '') {
+function renderFilters(acceptType = 'exterior', keywordFilter = '', excludeFilter = '', acceptChance = 100) {
   fTypeEl.textContent    = TYPE_LABEL[acceptType] || acceptType;
   fKeywordEl.textContent = keywordFilter.trim() || 'any (no filter)';
+  fExcludeEl.textContent = excludeFilter.trim() || 'none';
+  fChanceEl.textContent  = `${acceptChance}%`;
 }
 
+const FILTER_KEYS = ['acceptType', 'keywordFilter', 'excludeFilter', 'acceptChance'];
+
 chrome.storage.local.get('monitorState', ({ monitorState }) => render(monitorState));
-chrome.storage.local.get(['acceptType', 'keywordFilter'], ({ acceptType, keywordFilter }) =>
-  renderFilters(acceptType, keywordFilter));
+chrome.storage.local.get(FILTER_KEYS, ({ acceptType, keywordFilter, excludeFilter, acceptChance }) =>
+  renderFilters(acceptType, keywordFilter, excludeFilter, acceptChance));
 
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.monitorState) render(changes.monitorState.newValue);
-  if (changes.acceptType || changes.keywordFilter) {
-    chrome.storage.local.get(['acceptType', 'keywordFilter'], ({ acceptType, keywordFilter }) =>
-      renderFilters(acceptType, keywordFilter));
+  if (FILTER_KEYS.some(k => changes[k])) {
+    chrome.storage.local.get(FILTER_KEYS, ({ acceptType, keywordFilter, excludeFilter, acceptChance }) =>
+      renderFilters(acceptType, keywordFilter, excludeFilter, acceptChance));
   }
 });
 

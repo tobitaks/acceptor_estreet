@@ -81,6 +81,15 @@
     </div>
 
     <div class="card">
+      <h2 style="margin-bottom: 16px;">Exclude filter / blocklist <span class="saved-note" id="saved-exclude">Saved ✓</span></h2>
+      <div class="form-group">
+        <input type="text" id="exclude-filter"
+          placeholder="e.g. ATLANTA, FL, 30349  (blank = exclude nothing)">
+        <p class="form-help">Reverse of the filter above. Comma-separated, <strong>whole-word</strong>, case-insensitive. Any order whose row matches <strong>any</strong> of these is <strong>skipped</strong>. Runs <em>after</em> the keyword filter. Use to block specific cities/states/zips you don't want. Leave blank to exclude nothing.</p>
+      </div>
+    </div>
+
+    <div class="card">
       <h2 style="margin-bottom: 16px;">Accept chance (camouflage) <span class="saved-note" id="saved-chance">Saved ✓</span></h2>
       <div class="form-group">
         <div style="display:flex; align-items:center; gap:16px;">

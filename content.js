@@ -133,6 +133,25 @@ function filterByKeyword(orders, keywordFilter) {
   });
 }
 
+// Reverse keyword filter (BLOCKLIST): DROP any order whose row matches ANY keyword.
+// Same matching as filterByKeyword — whole-word, case-insensitive, comma-separated,
+// match-ANY. Blank = no exclusions. Runs AFTER the include keyword filter.
+// Orders with no rowText (regex fallback) can't be checked — KEPT (not excluded),
+// the inverse of the include filter: we only drop on a proven match.
+function filterByExcludeKeyword(orders, excludeFilter) {
+  const kws = (excludeFilter || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  if (!kws.length) return orders;
+  const matchers = kws.map(k => {
+    const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${esc}\\b`, 'i');
+  });
+  return orders.filter(o => {
+    const hay = o.rowText || '';
+    if (!hay) return true; // can't verify match — don't exclude
+    return !matchers.some(re => re.test(hay));
+  });
+}
+
 function extensionAlive() {
   return !!chrome.runtime?.id;
 }
@@ -188,9 +207,12 @@ async function checkOrders() {
       if (newOrders.length) {
         newOrders.forEach(o => processedIds.add(o.apprId));
         if (count > lastCount) playAlarm(); // alarm only on genuine arrivals
-        const { acceptType = 'exterior', keywordFilter = '', acceptChance = 100 } =
-          await chrome.storage.local.get(['acceptType', 'keywordFilter', 'acceptChance']);
-        const filtered = filterByKeyword(filterOrdersByType(newOrders, acceptType), keywordFilter);
+        const { acceptType = 'exterior', keywordFilter = '', excludeFilter = '', acceptChance = 100 } =
+          await chrome.storage.local.get(['acceptType', 'keywordFilter', 'excludeFilter', 'acceptChance']);
+        const filtered = filterByExcludeKeyword(
+          filterByKeyword(filterOrdersByType(newOrders, acceptType), keywordFilter),
+          excludeFilter
+        );
 
         // Per-order coin toss: accept ~acceptChance%, skip the rest (camouflage —
         // a real appraiser doesn't grab 100% of orders). Skipped orders are already

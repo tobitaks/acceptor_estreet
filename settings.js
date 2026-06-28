@@ -28,6 +28,15 @@ keywordInput.addEventListener('input', (e) => {
   chrome.storage.local.set({ keywordFilter: e.target.value.trim() }, () => flash('saved-keyword'));
 });
 
+// Exclude filter / blocklist
+const excludeInput = document.getElementById('exclude-filter');
+chrome.storage.local.get('excludeFilter', ({ excludeFilter = '' }) => {
+  excludeInput.value = excludeFilter;
+});
+excludeInput.addEventListener('input', (e) => {
+  chrome.storage.local.set({ excludeFilter: e.target.value.trim() }, () => flash('saved-exclude'));
+});
+
 // Accept-chance coin toss (camouflage). Default 100 = accept all.
 const chanceInput = document.getElementById('accept-chance');
 const chanceVal   = document.getElementById('accept-chance-val');
