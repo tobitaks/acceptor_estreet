@@ -181,7 +181,7 @@ async function checkOrders() {
       lastHeartbeat = Date.now();
       const { heartbeatLog = [] } = await chrome.storage.local.get('heartbeatLog');
       heartbeatLog.unshift({ timestamp: lastChecked, count, sessionLost });
-      if (heartbeatLog.length > 300) heartbeatLog.length = 300; // ~150 hrs
+      if (heartbeatLog.length > 20) heartbeatLog.length = 20; // ~10 hrs
       await chrome.storage.local.set({ heartbeatLog });
       console.log(`[eStreet] heartbeat @ ${lastChecked}`);
     }

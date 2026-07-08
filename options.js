@@ -179,6 +179,73 @@ function renderDetections(entries) {
   ` + pager(detectPage, log.length, 'detect');
 }
 
+// Local YYYY-MM-DD (sort key) + human label from a timestamp
+function localYMD(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function dayLabel(ts) {
+  return new Date(ts).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+// Per-day roll-up: Detected (from detectionLog.orders), and accept outcomes
+// (from acceptedLog). Grouped by local calendar day, newest first.
+function renderDailySummary() {
+  const c = document.getElementById('daily-summary-container');
+  const days = {}; // ymd -> { label, detected, accepted, taken, failed, skipped }
+  const get = (ts) => {
+    const k = localYMD(ts);
+    if (!days[k]) days[k] = { label: dayLabel(ts), detected: 0, accepted: 0, taken: 0, failed: 0, skipped: 0 };
+    return days[k];
+  };
+
+  for (const e of detectData) {
+    if (!e.timestamp) continue;
+    get(e.timestamp).detected += (e.orders || []).length;
+  }
+  for (const e of acceptedData) {
+    if (!e.timestamp) continue;
+    const d = get(e.timestamp);
+    const outcome = e.outcome || (e.success ? 'accepted' : 'failed');
+    if (outcome === 'accepted')         d.accepted++;
+    else if (outcome === 'unavailable') d.taken++;
+    else if (outcome === 'skipped')     d.skipped++;
+    else                                d.failed++;
+  }
+
+  const keys = Object.keys(days).sort().reverse();
+  if (!keys.length) {
+    c.innerHTML = '<div class="log-empty">No data yet.</div>';
+    return;
+  }
+  const rows = keys.map(k => {
+    const d = days[k];
+    return `
+      <tr>
+        <td><strong>${d.label}</strong></td>
+        <td>${d.detected}</td>
+        <td style="color:#2E7D32;font-weight:600">${d.accepted}</td>
+        <td style="color:#E65100">${d.taken}</td>
+        <td style="color:#C62828">${d.failed}</td>
+        <td style="color:#546E7A">${d.skipped}</td>
+      </tr>`;
+  }).join('');
+  c.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Detected</th>
+          <th>Accepted</th>
+          <th>Already Taken</th>
+          <th>Failed</th>
+          <th>Skipped (coin)</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 function renderHeartbeat(entries) {
   const log = entries || [];
   const c = document.getElementById('last-heartbeat');
@@ -193,19 +260,21 @@ function renderHeartbeat(entries) {
   const state = e.sessionLost
     ? '<span class="status-badge fail">Logged out</span>'
     : '<span class="status-badge success">Alive</span>';
-  c.innerHTML = `<strong>Last heartbeat:</strong> ${time} &nbsp; ${state}`;
+  c.innerHTML = `Last heartbeat: ${time} &nbsp; ${state} &nbsp; View history →`;
 }
 
 chrome.storage.local.get(['acceptedLog', 'detectionLog', 'heartbeatLog'], ({ acceptedLog, detectionLog, heartbeatLog }) => {
   render(acceptedLog);
   renderDetections(detectionLog);
   renderHeartbeat(heartbeatLog);
+  renderDailySummary();
 });
 
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.acceptedLog)  render(changes.acceptedLog.newValue);
   if (changes.detectionLog) renderDetections(changes.detectionLog.newValue);
   if (changes.heartbeatLog) renderHeartbeat(changes.heartbeatLog.newValue);
+  if (changes.acceptedLog || changes.detectionLog) renderDailySummary();
 });
 
 clearBtn.addEventListener('click', () => {

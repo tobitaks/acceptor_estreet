@@ -187,8 +187,8 @@ async function acceptOrder(apprId, itemText = '') {
 async function logAccepted(entry) {
   const { acceptedLog = [] } = await chrome.storage.local.get('acceptedLog');
   acceptedLog.unshift(entry);
-  // cap at 100 entries
-  if (acceptedLog.length > 100) acceptedLog.length = 100;
+  // cap at 500 entries
+  if (acceptedLog.length > 500) acceptedLog.length = 500;
   await chrome.storage.local.set({ acceptedLog });
 }
 
@@ -208,7 +208,7 @@ async function logSkippedBatch(orders) {
       timestamp
     });
   }
-  if (acceptedLog.length > 100) acceptedLog.length = 100;
+  if (acceptedLog.length > 500) acceptedLog.length = 500;
   await chrome.storage.local.set({ acceptedLog });
 }
 

@@ -205,6 +205,8 @@
       font-size: 13px; font-weight: 600; text-decoration: none;
     }
     .settings-link:hover { background: #0d47a1; }
+    .heartbeat-link { font-size: 13px; color: #1565C0; text-decoration: none; font-weight: 600; }
+    .heartbeat-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -215,7 +217,10 @@
     </div>
 
     <div class="card">
-      <h2 style="margin-bottom: 16px;">Stats</h2>
+      <div class="card-header">
+        <h2>Stats</h2>
+        <a href="heartbeat.html" id="last-heartbeat" class="heartbeat-link" title="View heartbeat history">No heartbeats yet.</a>
+      </div>
       <div class="stats">
         <div class="stat"><span class="stat-num" id="stat-total">0</span><span class="stat-label">Total Attempts</span></div>
         <div class="stat"><span class="stat-num" id="stat-success">0</span><span class="stat-label">Accepted</span></div>
@@ -226,12 +231,9 @@
     </div>
 
     <div class="card">
-      <div class="card-header">
-        <h2>Detections (Audio Alerts)</h2>
-        <button class="clear-btn" id="clear-detections-btn">Clear Log</button>
-      </div>
-      <div id="detections-container">
-        <div class="log-empty">No detections yet.</div>
+      <h2 style="margin-bottom: 16px;">Daily Summary</h2>
+      <div id="daily-summary-container">
+        <div class="log-empty">No data yet.</div>
       </div>
     </div>
 
@@ -250,10 +252,12 @@
 
     <div class="card">
       <div class="card-header">
-        <h2>Heartbeat</h2>
-        <a href="heartbeat.html" class="settings-link">View history →</a>
+        <h2>Detections (Audio Alerts)</h2>
+        <button class="clear-btn" id="clear-detections-btn">Clear Log</button>
       </div>
-      <div id="last-heartbeat" style="font-size:13px;color:#555;">No heartbeats yet.</div>
+      <div id="detections-container">
+        <div class="log-empty">No detections yet.</div>
+      </div>
     </div>
 
   </div>
