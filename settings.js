@@ -60,3 +60,13 @@ limitInput.addEventListener('input', (e) => {
   const v = Math.max(0, parseInt(e.target.value, 10) || 0);
   chrome.storage.local.set({ dailyAcceptLimit: v }, () => flash('saved-limit'));
 });
+
+// Normal-mode poll interval in seconds (default 20, min 5). Fast mode is fixed ~0.5s.
+const normalInput = document.getElementById('normal-interval');
+chrome.storage.local.get('normalIntervalSec', ({ normalIntervalSec = 20 }) => {
+  normalInput.value = normalIntervalSec;
+});
+normalInput.addEventListener('input', (e) => {
+  const v = Math.max(5, parseInt(e.target.value, 10) || 20);
+  chrome.storage.local.set({ normalIntervalSec: v }, () => flash('saved-normal'));
+});

@@ -101,6 +101,18 @@
     </div>
 
     <div class="card">
+      <h2 style="margin-bottom: 16px;">Normal-mode poll interval <span class="saved-note" id="saved-normal">Saved ✓</span></h2>
+      <div class="form-group">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="number" id="normal-interval" min="5" step="1" value="20"
+            style="width: 110px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;">
+          <span style="font-size:13px; color:#333;">seconds between checks</span>
+        </div>
+        <p class="form-help">How often to poll while <strong>idle</strong> (no recent orders). Lower = catch the first order of a bulk faster, but more requests/day. When a new order appears we switch to <strong>Fast mode</strong> (~0.5s, uncapped) to grab the rest of the bulk, then fall back here after 3 min quiet. Default <code>20</code>, minimum <code>5</code>.</p>
+      </div>
+    </div>
+
+    <div class="card">
       <h2 style="margin-bottom: 16px;">Daily accept limit <span class="saved-note" id="saved-limit">Saved ✓</span></h2>
       <div class="form-group">
         <input type="number" id="daily-limit" min="0" step="1" placeholder="0 = unlimited"

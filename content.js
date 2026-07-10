@@ -7,43 +7,44 @@ let lastHeartbeat = 0;      // 30-min alive stamp
 const processedIds = new Set(); // ApprIDs already detected this session — never re-log/re-act
 
 // --- Adaptive polling (anti-detection) -------------------------------------
-// Volume-based bans (ValueLink-style) count requests/day, not timing jitter.
-// So poll SLOW by default, burst FAST only while orders are actively landing.
-//   NORMAL: ~30s  — human-plausible idle refresh
-//   FAST:   ~0.5s — kicks in when a new order is found, to grab the rest of a
-//                   bulk while it's hot; drops back to NORMAL after 3 min quiet.
-// Daily cap is a hard backstop so a pathological "order every ~3 min" can't pin
-// us in FAST all day.
-const NORMAL_MS         = 30000;          // base normal interval
-const NORMAL_JITTER     = 5000;           // → 25–35 s
-const FAST_MS           = 500;            // base fast interval
-const FAST_JITTER       = 100;            // → 400–600 ms
-const FAST_LINGER_MS    = 3 * 60 * 1000;  // stay fast 3 min after the last new order
-const DAILY_REQUEST_CAP = 10000;          // backstop; expected day is ~2–5k
+// Volume-based bans (ValueLink-style) count requests/day. Poll SLOW by default,
+// burst FAST while a bulk is actively landing.
+//   NORMAL: user-configurable (Settings), default 20s — human-plausible refresh
+//   FAST:   ~0.5s — grabs the rest of a bulk while it's hot; drops back to
+//                   NORMAL after 3 min with no new order.
+// No request cap on FAST: the daily ACCEPT limit (Settings) is the real ceiling —
+// once it's hit the monitored tab closes and polling stops entirely.
+const NORMAL_DEFAULT_SEC = 20;            // fallback if the setting is unset
+const NORMAL_JITTER      = 5000;          // max ± jitter on the normal interval
+const FAST_MS            = 500;           // base fast interval
+const FAST_JITTER        = 100;           // → 400–600 ms
+const FAST_LINGER_MS     = 3 * 60 * 1000; // stay fast 3 min after the last new order
 
-let fastUntil     = 0;   // FAST while Date.now() < fastUntil
-let requestsToday = 0;   // GET+POST from this content script today
-let requestDay    = '';  // local day key; resets the counter on rollover
+let fastUntil = 0;                          // FAST while Date.now() < fastUntil
+let normalMs  = NORMAL_DEFAULT_SEC * 1000;  // cached normal interval (from Settings)
 
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-}
-function bumpRequestCount() {
-  const k = todayKey();
-  if (k !== requestDay) { requestDay = k; requestsToday = 0; }
-  requestsToday++;
-}
+// Load + live-update the normal interval from Settings (no reload needed).
+chrome.storage.local.get('normalIntervalSec', ({ normalIntervalSec }) => {
+  const s = parseInt(normalIntervalSec, 10);
+  if (s > 0) normalMs = s * 1000;
+});
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.normalIntervalSec) {
+    const s = parseInt(changes.normalIntervalSec.newValue, 10);
+    if (s > 0) normalMs = s * 1000;
+  }
+});
+
 function inFastMode() {
-  return Date.now() < fastUntil && requestsToday < DAILY_REQUEST_CAP;
+  return Date.now() < fastUntil;
 }
 function jitter(base, spread) {
   return base - spread + Math.floor(Math.random() * (2 * spread + 1));
 }
 function pollInterval() {
-  return inFastMode()
-    ? jitter(FAST_MS, FAST_JITTER)      // 400–600 ms
-    : jitter(NORMAL_MS, NORMAL_JITTER); // 25–35 s
+  if (inFastMode()) return jitter(FAST_MS, FAST_JITTER); // 400–600 ms
+  const spread = Math.min(NORMAL_JITTER, Math.floor(normalMs * 0.25));
+  return jitter(normalMs, spread);
 }
 
 function playAlarm() {
@@ -78,7 +79,6 @@ async function extractNewOrders(dashHtml) {
   if (viewStateGen) params.set('__VIEWSTATEGENERATOR', viewStateGen);
   if (eventValid)   params.set('__EVENTVALIDATION', eventValid);
 
-  bumpRequestCount(); // postback POST below
   const res = await fetch(DASHBOARD_URL, {
     method: 'POST',
     credentials: 'include',
@@ -198,7 +198,6 @@ async function checkOrders() {
     return;
   }
   try {
-    bumpRequestCount(); // dashboard GET below
     const res = await fetch(DASHBOARD_URL, {
       credentials: 'include'
     });
