@@ -99,6 +99,15 @@
         <p class="form-help">Per-order coin toss <em>after</em> the filters above. At <code>100%</code> every matching order is accepted (no skipping). Lower it (e.g. <code>70%</code>) and each order has that chance to be accepted, the rest are <strong>skipped on purpose</strong> — a 100% acceptance rate looks like a bot. Skipped orders are gone for good (not retried). Skips show in the log as <strong>Skipped (coin)</strong>.</p>
       </div>
     </div>
+
+    <div class="card">
+      <h2 style="margin-bottom: 16px;">Daily accept limit <span class="saved-note" id="saved-limit">Saved ✓</span></h2>
+      <div class="form-group">
+        <input type="number" id="daily-limit" min="0" step="1" placeholder="0 = unlimited"
+          style="width: 160px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;">
+        <p class="form-help">Stop after this many <strong>successfully accepted</strong> orders in a day (local time). When the limit is hit, the monitored tab is <strong>closed</strong> and polling stops — the session goes idle. <code>0</code> or blank = no limit. Resets at local midnight. Only <strong>Accepted</strong> orders count (Already-Taken and Failed do not).</p>
+      </div>
+    </div>
   </div>
 
   <script src="settings.js"></script>

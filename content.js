@@ -6,9 +6,44 @@ let lastSessionAlarm = 0;   // throttle logged-out alarm
 let lastHeartbeat = 0;      // 30-min alive stamp
 const processedIds = new Set(); // ApprIDs already detected this session — never re-log/re-act
 
+// --- Adaptive polling (anti-detection) -------------------------------------
+// Volume-based bans (ValueLink-style) count requests/day, not timing jitter.
+// So poll SLOW by default, burst FAST only while orders are actively landing.
+//   NORMAL: ~30s  — human-plausible idle refresh
+//   FAST:   ~0.5s — kicks in when a new order is found, to grab the rest of a
+//                   bulk while it's hot; drops back to NORMAL after 3 min quiet.
+// Daily cap is a hard backstop so a pathological "order every ~3 min" can't pin
+// us in FAST all day.
+const NORMAL_MS         = 30000;          // base normal interval
+const NORMAL_JITTER     = 5000;           // → 25–35 s
+const FAST_MS           = 500;            // base fast interval
+const FAST_JITTER       = 100;            // → 400–600 ms
+const FAST_LINGER_MS    = 3 * 60 * 1000;  // stay fast 3 min after the last new order
+const DAILY_REQUEST_CAP = 10000;          // backstop; expected day is ~2–5k
+
+let fastUntil     = 0;   // FAST while Date.now() < fastUntil
+let requestsToday = 0;   // GET+POST from this content script today
+let requestDay    = '';  // local day key; resets the counter on rollover
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+function bumpRequestCount() {
+  const k = todayKey();
+  if (k !== requestDay) { requestDay = k; requestsToday = 0; }
+  requestsToday++;
+}
+function inFastMode() {
+  return Date.now() < fastUntil && requestsToday < DAILY_REQUEST_CAP;
+}
+function jitter(base, spread) {
+  return base - spread + Math.floor(Math.random() * (2 * spread + 1));
+}
 function pollInterval() {
-  // 200-300ms jitter: faster detection than fixed 500ms, jitter avoids fixed-pattern fingerprint
-  return 200 + Math.floor(Math.random() * 100);
+  return inFastMode()
+    ? jitter(FAST_MS, FAST_JITTER)      // 400–600 ms
+    : jitter(NORMAL_MS, NORMAL_JITTER); // 25–35 s
 }
 
 function playAlarm() {
@@ -43,6 +78,7 @@ async function extractNewOrders(dashHtml) {
   if (viewStateGen) params.set('__VIEWSTATEGENERATOR', viewStateGen);
   if (eventValid)   params.set('__EVENTVALIDATION', eventValid);
 
+  bumpRequestCount(); // postback POST below
   const res = await fetch(DASHBOARD_URL, {
     method: 'POST',
     credentials: 'include',
@@ -162,6 +198,7 @@ async function checkOrders() {
     return;
   }
   try {
+    bumpRequestCount(); // dashboard GET below
     const res = await fetch(DASHBOARD_URL, {
       credentials: 'include'
     });
@@ -206,6 +243,9 @@ async function checkOrders() {
 
       if (newOrders.length) {
         newOrders.forEach(o => processedIds.add(o.apprId));
+        // New ApprID(s) → burst to FAST to catch the rest of the bulk.
+        // Timer resets on every new order, chaining a cluster together.
+        fastUntil = Date.now() + FAST_LINGER_MS;
         if (count > lastCount) playAlarm(); // alarm only on genuine arrivals
         const { acceptType = 'exterior', keywordFilter = '', excludeFilter = '', acceptChance = 100 } =
           await chrome.storage.local.get(['acceptType', 'keywordFilter', 'excludeFilter', 'acceptChance']);

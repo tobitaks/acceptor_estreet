@@ -49,3 +49,14 @@ chanceInput.addEventListener('input', (e) => {
   chanceVal.textContent = `${v}%`;
   chrome.storage.local.set({ acceptChance: v }, () => flash('saved-chance'));
 });
+
+// Daily accept limit (0 / blank = unlimited). Only successful accepts count;
+// enforcement + tab-close lives in background.js.
+const limitInput = document.getElementById('daily-limit');
+chrome.storage.local.get('dailyAcceptLimit', ({ dailyAcceptLimit = 0 }) => {
+  limitInput.value = dailyAcceptLimit || '';
+});
+limitInput.addEventListener('input', (e) => {
+  const v = Math.max(0, parseInt(e.target.value, 10) || 0);
+  chrome.storage.local.set({ dailyAcceptLimit: v }, () => flash('saved-limit'));
+});

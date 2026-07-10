@@ -338,10 +338,57 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
+// Count of SUCCESSFUL accepts logged today (local calendar day). Source of truth
+// is acceptedLog — recomputed each call so it survives service-worker restarts.
+function localYMD(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+async function acceptsToday() {
+  const { acceptedLog = [] } = await chrome.storage.local.get('acceptedLog');
+  const today = localYMD(new Date().toISOString());
+  return acceptedLog.filter(e => e.outcome === 'accepted' && e.timestamp && localYMD(e.timestamp) === today).length;
+}
+// Stop monitoring: close the monitored tab (kills the poll loop → session goes
+// idle) and clear monitorState. Mirrors the STOP handler; onRemoved also resets.
+function stopMonitoring(reason) {
+  chrome.storage.local.get('monitorState', ({ monitorState }) => {
+    if (monitorState?.tabId) {
+      chrome.tabs.remove(monitorState.tabId, () => void chrome.runtime.lastError);
+    }
+    chrome.storage.local.set({
+      monitorState: { monitoring: false, tabId: null, count: 0, lastChecked: null }
+    });
+    console.log(`[eStreet bg] monitoring stopped — ${reason}`);
+  });
+}
+
 async function runBatchedAccepts(list, batchSize) {
-  console.log(`[eStreet bg] accepting ${list.length} order(s) in batches of ${batchSize}`);
-  for (let i = 0; i < list.length; i += batchSize) {
-    const batch = list.slice(i, i + batchSize);
+  // Daily accept cap (0/blank = unlimited). Trim the attempt list to the
+  // remaining budget BEFORE firing — successes ≤ attempts, so this can never
+  // overshoot the cap (it may under-fill a bulk if some accepts fail; the next
+  // bulk takes up the slack).
+  const { dailyAcceptLimit = 0 } = await chrome.storage.local.get('dailyAcceptLimit');
+  const limit = parseInt(dailyAcceptLimit, 10) || 0;
+
+  let work = list;
+  if (limit > 0) {
+    const already = await acceptsToday();
+    const remaining = limit - already;
+    if (remaining <= 0) {
+      console.log(`[eStreet bg] daily accept limit ${limit} already reached (${already}) — skipping ${list.length} & stopping`);
+      stopMonitoring(`daily accept limit ${limit} reached`);
+      return;
+    }
+    if (list.length > remaining) {
+      console.log(`[eStreet bg] trimming ${list.length} → ${remaining} to stay under daily limit ${limit}`);
+      work = list.slice(0, remaining);
+    }
+  }
+
+  console.log(`[eStreet bg] accepting ${work.length} order(s) in batches of ${batchSize}`);
+  for (let i = 0; i < work.length; i += batchSize) {
+    const batch = work.slice(i, i + batchSize);
     const batchNum = Math.floor(i / batchSize) + 1;
     console.log(`[eStreet bg] batch ${batchNum} firing ${batch.length} parallel`);
     await Promise.allSettled(
@@ -354,6 +401,16 @@ async function runBatchedAccepts(list, batchSize) {
     );
   }
   console.log('[eStreet bg] all batches complete');
+
+  // Hit the cap on successful accepts? Stop now — no reason to keep polling
+  // (also cuts request footprint once the day's target is met).
+  if (limit > 0) {
+    const done = await acceptsToday();
+    if (done >= limit) {
+      console.log(`[eStreet bg] daily accept limit reached (${done}/${limit}) — stopping`);
+      stopMonitoring(`daily accept limit ${limit} reached`);
+    }
+  }
 }
 
 // If user manually closes the monitored tab, reset state

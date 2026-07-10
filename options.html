@@ -207,6 +207,17 @@
     .settings-link:hover { background: #0d47a1; }
     .heartbeat-link { font-size: 13px; color: #1565C0; text-decoration: none; font-weight: 600; }
     .heartbeat-link:hover { text-decoration: underline; }
+    .filter-warning {
+      background: #FFF3CD;
+      border: 1px solid #E0A800;
+      color: #856404;
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .filter-warning a { color: #856404; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -215,6 +226,8 @@
       <h1>eStreet Order Monitor</h1>
       <a href="settings.html" class="settings-link">⚙ Settings</a>
     </div>
+
+    <div id="filter-warning" class="filter-warning" style="display:none;"></div>
 
     <div class="card">
       <div class="card-header">

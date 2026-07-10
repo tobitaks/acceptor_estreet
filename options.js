@@ -246,6 +246,21 @@ function renderDailySummary() {
     </table>`;
 }
 
+// Warn when recent detections found orders but NONE passed the filters —
+// the silent "wrong filter" failure (e.g. filtering MD zips on GA orders).
+function renderFilterWarning() {
+  const el = document.getElementById('filter-warning');
+  const recent = detectData.slice(0, 20); // newest 20 detections
+  const found  = recent.reduce((s, e) => s + (e.orders   || []).length, 0);
+  const passed = recent.reduce((s, e) => s + (e.filtered || []).length, 0);
+  if (recent.length >= 5 && found > 0 && passed === 0) {
+    el.innerHTML = `⚠ <strong>${found} order(s) detected but 0 passed your filters</strong> in the last ${recent.length} detections. Your City/keyword or Exclude filter may be wrong or too narrow — check the state/zips. <a href="settings.html">Check Settings →</a>`;
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function renderHeartbeat(entries) {
   const log = entries || [];
   const c = document.getElementById('last-heartbeat');
@@ -268,6 +283,7 @@ chrome.storage.local.get(['acceptedLog', 'detectionLog', 'heartbeatLog'], ({ acc
   renderDetections(detectionLog);
   renderHeartbeat(heartbeatLog);
   renderDailySummary();
+  renderFilterWarning();
 });
 
 chrome.storage.onChanged.addListener((changes) => {
@@ -275,6 +291,7 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.detectionLog) renderDetections(changes.detectionLog.newValue);
   if (changes.heartbeatLog) renderHeartbeat(changes.heartbeatLog.newValue);
   if (changes.acceptedLog || changes.detectionLog) renderDailySummary();
+  if (changes.detectionLog) renderFilterWarning();
 });
 
 clearBtn.addEventListener('click', () => {
