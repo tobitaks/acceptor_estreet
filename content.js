@@ -22,21 +22,24 @@ const FAST_LINGER_MS     = 3 * 60 * 1000; // stay fast 3 min after the last new 
 
 let fastUntil = 0;                          // FAST while Date.now() < fastUntil
 let normalMs  = NORMAL_DEFAULT_SEC * 1000;  // cached normal interval (from Settings)
+let alwaysFast = false;                     // Settings toggle — bypass normal mode, always FAST
 
-// Load + live-update the normal interval from Settings (no reload needed).
-chrome.storage.local.get('normalIntervalSec', ({ normalIntervalSec }) => {
+// Load + live-update the normal interval + always-fast toggle from Settings (no reload needed).
+chrome.storage.local.get(['normalIntervalSec', 'alwaysFast'], ({ normalIntervalSec, alwaysFast: af }) => {
   const s = parseInt(normalIntervalSec, 10);
   if (s > 0) normalMs = s * 1000;
+  alwaysFast = af === true;
 });
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.normalIntervalSec) {
     const s = parseInt(changes.normalIntervalSec.newValue, 10);
     if (s > 0) normalMs = s * 1000;
   }
+  if (changes.alwaysFast) alwaysFast = changes.alwaysFast.newValue === true;
 });
 
 function inFastMode() {
-  return Date.now() < fastUntil;
+  return alwaysFast || Date.now() < fastUntil;
 }
 function jitter(base, spread) {
   return base - spread + Math.floor(Math.random() * (2 * spread + 1));

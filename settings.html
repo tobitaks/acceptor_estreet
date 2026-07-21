@@ -110,6 +110,12 @@
         </div>
         <p class="form-help">How often to poll while <strong>idle</strong> (no recent orders). Lower = catch the first order of a bulk faster, but more requests/day. When a new order appears we switch to <strong>Fast mode</strong> (~0.5s, uncapped) to grab the rest of the bulk, then fall back here after 3 min quiet. Default <code>20</code>, minimum <code>5</code>.</p>
       </div>
+      <div class="form-group" style="margin-bottom:0; padding-top:12px; border-top:1px solid #eee;">
+        <label class="radio-option" style="gap: 12px; padding:0;">
+          <input type="checkbox" id="always-fast">
+          <span>Always use Fast mode (~0.5s) — ignore the interval above. <strong>Highest request volume / ban risk.</strong> When ON, the field above is disabled.</span>
+        </label>
+      </div>
     </div>
 
     <div class="card">

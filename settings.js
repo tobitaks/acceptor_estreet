@@ -70,3 +70,19 @@ normalInput.addEventListener('input', (e) => {
   const v = Math.max(5, parseInt(e.target.value, 10) || 20);
   chrome.storage.local.set({ normalIntervalSec: v }, () => flash('saved-normal'));
 });
+
+// Always-fast toggle — bypasses normal-mode interval. Disables the field when ON.
+const alwaysFastToggle = document.getElementById('always-fast');
+function syncNormalDisabled(on) {
+  normalInput.disabled = on;
+  normalInput.style.opacity = on ? '0.4' : '1';
+}
+chrome.storage.local.get('alwaysFast', ({ alwaysFast = false }) => {
+  alwaysFastToggle.checked = alwaysFast === true;
+  syncNormalDisabled(alwaysFast === true);
+});
+alwaysFastToggle.addEventListener('change', (e) => {
+  const on = e.target.checked;
+  syncNormalDisabled(on);
+  chrome.storage.local.set({ alwaysFast: on }, () => flash('saved-normal'));
+});
