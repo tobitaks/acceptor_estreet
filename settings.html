@@ -101,19 +101,33 @@
     </div>
 
     <div class="card">
-      <h2 style="margin-bottom: 16px;">Normal-mode poll interval <span class="saved-note" id="saved-normal">Saved ✓</span></h2>
-      <div class="form-group">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <input type="number" id="normal-interval" min="3" step="1" value="20"
-            style="width: 110px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;">
-          <span style="font-size:13px; color:#333;">seconds between checks</span>
+      <h2 style="margin-bottom: 16px;">Normal-mode poll interval (randomized) <span class="saved-note" id="saved-normal">Saved ✓</span></h2>
+      <div class="form-group" id="poll-bands">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+          <span style="font-size:13px; color:#333; min-width:70px;">Low band</span>
+          <input type="number" id="poll-low-min" min="1" step="1" value="3" style="width:70px; padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;">
+          <span style="font-size:13px; color:#333;">to</span>
+          <input type="number" id="poll-low-max" min="1" step="1" value="5" style="width:70px; padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;">
+          <span style="font-size:13px; color:#333;">seconds</span>
         </div>
-        <p class="form-help">How often to poll while <strong>idle</strong> (no recent orders). Lower = catch the first order of a bulk faster, but more requests/day. When a new order appears we switch to <strong>Fast mode</strong> (~0.5s, uncapped) to grab the rest of the bulk, then fall back here after 3 min quiet. Default <code>20</code>, minimum <code>3</code>.</p>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+          <span style="font-size:13px; color:#333; min-width:70px;">High band</span>
+          <input type="number" id="poll-high-min" min="1" step="1" value="5" style="width:70px; padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;">
+          <span style="font-size:13px; color:#333;">to</span>
+          <input type="number" id="poll-high-max" min="1" step="1" value="20" style="width:70px; padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;">
+          <span style="font-size:13px; color:#333;">seconds</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:13px; color:#333; min-width:70px;">Low-band chance</span>
+          <input type="number" id="poll-low-weight" min="0" max="100" step="5" value="50" style="width:70px; padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;">
+          <span style="font-size:13px; color:#333;">%  <span id="poll-est" style="color:#888;"></span></span>
+        </div>
+        <p class="form-help">Each idle check picks a <strong>random</strong> delay: with the low-band chance it lands in the LOW band, otherwise the HIGH band. Randomness looks human and cuts requests/day vs a fixed interval. On a new order we burst to <strong>Fast mode</strong> (~0.5s) to grab the bulk, then fall back here after 3 min quiet. Default 50% <code>3–5s</code> / 50% <code>5–20s</code>.</p>
       </div>
       <div class="form-group" style="margin-bottom:0; padding-top:12px; border-top:1px solid #eee;">
         <label class="radio-option" style="gap: 12px; padding:0;">
           <input type="checkbox" id="always-fast">
-          <span>Always use Fast mode (~0.5s) — ignore the interval above. <strong>Highest request volume / ban risk.</strong> When ON, the field above is disabled.</span>
+          <span>Always use Fast mode (~0.5s) — ignore the bands above. <strong>Highest request volume / ban risk.</strong> When ON, the fields above are disabled.</span>
         </label>
       </div>
     </div>

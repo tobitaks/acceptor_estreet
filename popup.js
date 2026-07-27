@@ -48,21 +48,26 @@ function filterCount(s) {
 }
 
 function renderFilters(s = {}) {
-  const { acceptType = 'exterior', keywordFilter = '', excludeFilter = '',
-          acceptChance = 100, normalIntervalSec = 20, alwaysFast = false, dailyAcceptLimit = 0 } = s;
+  const { acceptType = 'exterior', keywordFilter = '', excludeFilter = '', acceptChance = 100,
+          pollLowMin = 3, pollLowMax = 5, pollHighMin = 5, pollHighMax = 20, pollLowWeight = 50,
+          alwaysFast = false, dailyAcceptLimit = 0 } = s;
   fTypeEl.textContent    = TYPE_LABEL[acceptType] || acceptType;
   const kc = filterCount(keywordFilter);
   const ec = filterCount(excludeFilter);
   fKeywordEl.textContent  = kc ? `${kc} filter${kc !== 1 ? 's' : ''}` : 'any (no filter)';
   fExcludeEl.textContent  = ec ? `${ec} filter${ec !== 1 ? 's' : ''}` : 'none';
   fChanceEl.textContent   = `${acceptChance}%`;
-  fIntervalEl.textContent = alwaysFast === true ? 'Always fast (~0.5s)' : `${normalIntervalSec}s`;
+  const w = Math.min(100, Math.max(0, parseInt(pollLowWeight, 10) || 0));
+  fIntervalEl.textContent = alwaysFast === true
+    ? 'Always fast (~0.5s)'
+    : `${w}% ${pollLowMin}-${pollLowMax}s · ${100 - w}% ${pollHighMin}-${pollHighMax}s`;
   const limit = parseInt(dailyAcceptLimit, 10) || 0;
   fLimitEl.textContent    = limit > 0 ? `${limit}/day` : 'unlimited';
 }
 
 const FILTER_KEYS = ['acceptType', 'keywordFilter', 'excludeFilter', 'acceptChance',
-                     'normalIntervalSec', 'alwaysFast', 'dailyAcceptLimit'];
+                     'pollLowMin', 'pollLowMax', 'pollHighMin', 'pollHighMax', 'pollLowWeight',
+                     'alwaysFast', 'dailyAcceptLimit'];
 
 chrome.storage.local.get('monitorState', ({ monitorState }) => render(monitorState));
 chrome.storage.local.get(FILTER_KEYS, (s) => renderFilters(s));

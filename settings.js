@@ -61,28 +61,70 @@ limitInput.addEventListener('input', (e) => {
   chrome.storage.local.set({ dailyAcceptLimit: v }, () => flash('saved-limit'));
 });
 
-// Normal-mode poll interval in seconds (default 20, min 5). Fast mode is fixed ~0.5s.
-const normalInput = document.getElementById('normal-interval');
-chrome.storage.local.get('normalIntervalSec', ({ normalIntervalSec = 20 }) => {
-  normalInput.value = normalIntervalSec;
-});
-normalInput.addEventListener('input', (e) => {
-  const v = Math.max(3, parseInt(e.target.value, 10) || 20);
-  chrome.storage.local.set({ normalIntervalSec: v }, () => flash('saved-normal'));
+// Randomized normal-mode polling: two bands + weighted split.
+const bandEls = {
+  lowMin:  document.getElementById('poll-low-min'),
+  lowMax:  document.getElementById('poll-low-max'),
+  highMin: document.getElementById('poll-high-min'),
+  highMax: document.getElementById('poll-high-max'),
+  weight:  document.getElementById('poll-low-weight')
+};
+const pollEst = document.getElementById('poll-est');
+const BAND_DEFAULTS = { pollLowMin: 3, pollLowMax: 5, pollHighMin: 5, pollHighMax: 20, pollLowWeight: 50 };
+
+// Live estimate: avg interval + requests over a 10-hr day
+function updatePollEst() {
+  const lo = (+bandEls.lowMin.value + +bandEls.lowMax.value) / 2;
+  const hi = (+bandEls.highMin.value + +bandEls.highMax.value) / 2;
+  const w  = Math.min(100, Math.max(0, +bandEls.weight.value)) / 100;
+  const avg = w * lo + (1 - w) * hi;
+  if (avg > 0) {
+    const per10h = Math.round((10 * 3600) / avg);
+    pollEst.textContent = `— avg ~${avg.toFixed(1)}s, ~${per10h.toLocaleString()} reqs/10hr`;
+  } else {
+    pollEst.textContent = '';
+  }
+}
+
+chrome.storage.local.get(Object.keys(BAND_DEFAULTS), (s) => {
+  bandEls.lowMin.value  = s.pollLowMin    ?? BAND_DEFAULTS.pollLowMin;
+  bandEls.lowMax.value  = s.pollLowMax    ?? BAND_DEFAULTS.pollLowMax;
+  bandEls.highMin.value = s.pollHighMin   ?? BAND_DEFAULTS.pollHighMin;
+  bandEls.highMax.value = s.pollHighMax   ?? BAND_DEFAULTS.pollHighMax;
+  bandEls.weight.value  = s.pollLowWeight ?? BAND_DEFAULTS.pollLowWeight;
+  updatePollEst();
 });
 
-// Always-fast toggle — bypasses normal-mode interval. Disables the field when ON.
+const bandSave = {
+  lowMin:  ['pollLowMin', 1], lowMax: ['pollLowMax', 1],
+  highMin: ['pollHighMin', 1], highMax: ['pollHighMax', 1],
+  weight:  ['pollLowWeight', 0]
+};
+Object.entries(bandSave).forEach(([el, [key, min]]) => {
+  bandEls[el].addEventListener('input', (e) => {
+    let v = parseInt(e.target.value, 10);
+    if (!Number.isFinite(v)) return;
+    v = Math.max(min, v);
+    if (key === 'pollLowWeight') v = Math.min(100, v);
+    chrome.storage.local.set({ [key]: v }, () => flash('saved-normal'));
+    updatePollEst();
+  });
+});
+
+// Always-fast toggle — bypasses the bands. Disables the fields when ON.
 const alwaysFastToggle = document.getElementById('always-fast');
-function syncNormalDisabled(on) {
-  normalInput.disabled = on;
-  normalInput.style.opacity = on ? '0.4' : '1';
+function syncBandsDisabled(on) {
+  Object.values(bandEls).forEach(el => {
+    el.disabled = on;
+    el.style.opacity = on ? '0.4' : '1';
+  });
 }
 chrome.storage.local.get('alwaysFast', ({ alwaysFast = false }) => {
   alwaysFastToggle.checked = alwaysFast === true;
-  syncNormalDisabled(alwaysFast === true);
+  syncBandsDisabled(alwaysFast === true);
 });
 alwaysFastToggle.addEventListener('change', (e) => {
   const on = e.target.checked;
-  syncNormalDisabled(on);
+  syncBandsDisabled(on);
   chrome.storage.local.set({ alwaysFast: on }, () => flash('saved-normal'));
 });

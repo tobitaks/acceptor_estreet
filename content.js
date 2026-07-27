@@ -14,28 +14,36 @@ const processedIds = new Set(); // ApprIDs already detected this session — nev
 //                   NORMAL after 3 min with no new order.
 // No request cap on FAST: the daily ACCEPT limit (Settings) is the real ceiling —
 // once it's hit the monitored tab closes and polling stops entirely.
-const NORMAL_DEFAULT_SEC = 20;            // fallback if the setting is unset
-const NORMAL_JITTER      = 5000;          // max ± jitter on the normal interval
 const FAST_MS            = 500;           // base fast interval
 const FAST_JITTER        = 100;           // → 400–600 ms
 const FAST_LINGER_MS     = 3 * 60 * 1000; // stay fast 3 min after the last new order
 
-let fastUntil = 0;                          // FAST while Date.now() < fastUntil
-let normalMs  = NORMAL_DEFAULT_SEC * 1000;  // cached normal interval (from Settings)
-let alwaysFast = false;                     // Settings toggle — bypass normal mode, always FAST
+// Randomized idle polling — two configurable bands + a weighted split (Settings).
+// Each idle tick: with lowWeight% probability pick a uniform-random delay in the
+// LOW band, else in the HIGH band. Randomness looks human + lowers request volume
+// vs a fixed interval. Defaults: 50% chance 3–5s, 50% chance 5–20s.
+const POLL_DEFAULTS = { lowMin: 3, lowMax: 5, highMin: 5, highMax: 20, lowWeight: 50 };
+const POLL_KEYS = ['pollLowMin', 'pollLowMax', 'pollHighMin', 'pollHighMax', 'pollLowWeight', 'alwaysFast'];
 
-// Load + live-update the normal interval + always-fast toggle from Settings (no reload needed).
-chrome.storage.local.get(['normalIntervalSec', 'alwaysFast'], ({ normalIntervalSec, alwaysFast: af }) => {
-  const s = parseInt(normalIntervalSec, 10);
-  if (s > 0) normalMs = s * 1000;
-  alwaysFast = af === true;
-});
+let fastUntil  = 0;                       // FAST while Date.now() < fastUntil
+let alwaysFast = false;                   // Settings toggle — bypass bands, always FAST
+let pollCfg    = { ...POLL_DEFAULTS };    // cached band config (from Settings)
+
+function loadPollCfg(s) {
+  const num = (v, d) => { const x = parseFloat(v); return Number.isFinite(x) && x > 0 ? x : d; };
+  const wt  = parseInt(s.pollLowWeight, 10);
+  pollCfg = {
+    lowMin:  num(s.pollLowMin,  POLL_DEFAULTS.lowMin),
+    lowMax:  num(s.pollLowMax,  POLL_DEFAULTS.lowMax),
+    highMin: num(s.pollHighMin, POLL_DEFAULTS.highMin),
+    highMax: num(s.pollHighMax, POLL_DEFAULTS.highMax),
+    lowWeight: Number.isFinite(wt) ? Math.min(100, Math.max(0, wt)) : POLL_DEFAULTS.lowWeight
+  };
+  alwaysFast = s.alwaysFast === true;
+}
+chrome.storage.local.get(POLL_KEYS, loadPollCfg);
 chrome.storage.onChanged.addListener((changes) => {
-  if (changes.normalIntervalSec) {
-    const s = parseInt(changes.normalIntervalSec.newValue, 10);
-    if (s > 0) normalMs = s * 1000;
-  }
-  if (changes.alwaysFast) alwaysFast = changes.alwaysFast.newValue === true;
+  if (POLL_KEYS.some(k => changes[k])) chrome.storage.local.get(POLL_KEYS, loadPollCfg);
 });
 
 function inFastMode() {
@@ -44,10 +52,16 @@ function inFastMode() {
 function jitter(base, spread) {
   return base - spread + Math.floor(Math.random() * (2 * spread + 1));
 }
+function randRangeMs(minSec, maxSec) {
+  const lo = Math.min(minSec, maxSec), hi = Math.max(minSec, maxSec);
+  return Math.round((lo + Math.random() * (hi - lo)) * 1000);
+}
 function pollInterval() {
   if (inFastMode()) return jitter(FAST_MS, FAST_JITTER); // 400–600 ms
-  const spread = Math.min(NORMAL_JITTER, Math.floor(normalMs * 0.25));
-  return jitter(normalMs, spread);
+  const c = pollCfg;
+  return (Math.random() * 100 < c.lowWeight)
+    ? randRangeMs(c.lowMin, c.lowMax)
+    : randRangeMs(c.highMin, c.highMax);
 }
 
 function playAlarm() {
