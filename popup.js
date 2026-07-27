@@ -36,29 +36,41 @@ function render(state) {
 
 const fTypeEl    = document.getElementById('f-type');
 const fKeywordEl = document.getElementById('f-keyword');
-const fExcludeEl = document.getElementById('f-exclude');
-const fChanceEl  = document.getElementById('f-chance');
+const fExcludeEl  = document.getElementById('f-exclude');
+const fChanceEl   = document.getElementById('f-chance');
+const fIntervalEl = document.getElementById('f-interval');
+const fLimitEl    = document.getElementById('f-limit');
 
 const TYPE_LABEL = { both: 'Both (Ext + Int + VS)', exterior: 'Exterior only', interior: 'Interior only' };
 
-function renderFilters(acceptType = 'exterior', keywordFilter = '', excludeFilter = '', acceptChance = 100) {
-  fTypeEl.textContent    = TYPE_LABEL[acceptType] || acceptType;
-  fKeywordEl.textContent = keywordFilter.trim() || 'any (no filter)';
-  fExcludeEl.textContent = excludeFilter.trim() || 'none';
-  fChanceEl.textContent  = `${acceptChance}%`;
+function filterCount(s) {
+  return (s || '').split(',').map(x => x.trim()).filter(Boolean).length;
 }
 
-const FILTER_KEYS = ['acceptType', 'keywordFilter', 'excludeFilter', 'acceptChance'];
+function renderFilters(s = {}) {
+  const { acceptType = 'exterior', keywordFilter = '', excludeFilter = '',
+          acceptChance = 100, normalIntervalSec = 20, alwaysFast = false, dailyAcceptLimit = 0 } = s;
+  fTypeEl.textContent    = TYPE_LABEL[acceptType] || acceptType;
+  const kc = filterCount(keywordFilter);
+  const ec = filterCount(excludeFilter);
+  fKeywordEl.textContent  = kc ? `${kc} filter${kc !== 1 ? 's' : ''}` : 'any (no filter)';
+  fExcludeEl.textContent  = ec ? `${ec} filter${ec !== 1 ? 's' : ''}` : 'none';
+  fChanceEl.textContent   = `${acceptChance}%`;
+  fIntervalEl.textContent = alwaysFast === true ? 'Always fast (~0.5s)' : `${normalIntervalSec}s`;
+  const limit = parseInt(dailyAcceptLimit, 10) || 0;
+  fLimitEl.textContent    = limit > 0 ? `${limit}/day` : 'unlimited';
+}
+
+const FILTER_KEYS = ['acceptType', 'keywordFilter', 'excludeFilter', 'acceptChance',
+                     'normalIntervalSec', 'alwaysFast', 'dailyAcceptLimit'];
 
 chrome.storage.local.get('monitorState', ({ monitorState }) => render(monitorState));
-chrome.storage.local.get(FILTER_KEYS, ({ acceptType, keywordFilter, excludeFilter, acceptChance }) =>
-  renderFilters(acceptType, keywordFilter, excludeFilter, acceptChance));
+chrome.storage.local.get(FILTER_KEYS, (s) => renderFilters(s));
 
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.monitorState) render(changes.monitorState.newValue);
   if (FILTER_KEYS.some(k => changes[k])) {
-    chrome.storage.local.get(FILTER_KEYS, ({ acceptType, keywordFilter, excludeFilter, acceptChance }) =>
-      renderFilters(acceptType, keywordFilter, excludeFilter, acceptChance));
+    chrome.storage.local.get(FILTER_KEYS, (s) => renderFilters(s));
   }
 });
 

@@ -67,7 +67,7 @@ chrome.storage.local.get('normalIntervalSec', ({ normalIntervalSec = 20 }) => {
   normalInput.value = normalIntervalSec;
 });
 normalInput.addEventListener('input', (e) => {
-  const v = Math.max(5, parseInt(e.target.value, 10) || 20);
+  const v = Math.max(3, parseInt(e.target.value, 10) || 20);
   chrome.storage.local.set({ normalIntervalSec: v }, () => flash('saved-normal'));
 });
 
