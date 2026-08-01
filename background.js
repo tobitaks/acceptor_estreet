@@ -387,11 +387,12 @@ async function runBatchedAccepts(list, batchSize) {
   }
 
   console.log(`[eStreet bg] accepting ${work.length} order(s) in batches of ${batchSize}`);
+  let acceptedCount = 0;
   for (let i = 0; i < work.length; i += batchSize) {
     const batch = work.slice(i, i + batchSize);
     const batchNum = Math.floor(i / batchSize) + 1;
     console.log(`[eStreet bg] batch ${batchNum} firing ${batch.length} parallel`);
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       batch.map(o =>
         acceptOrder(o.apprId, o.itemText).catch(e => {
           console.error(`[eStreet bg] accept ${o.apprId} failed:`, e);
@@ -399,8 +400,16 @@ async function runBatchedAccepts(list, batchSize) {
         })
       )
     );
+    acceptedCount += results.filter(r => r.status === 'fulfilled' && r.value?.outcome === 'accepted').length;
   }
   console.log('[eStreet bg] all batches complete');
+
+  // Alarm ONLY on a successful accept — once per run (not per order) so a bulk
+  // of 10 accepts is one beep, not ten overlapping.
+  if (acceptedCount > 0) {
+    console.log(`[eStreet bg] ${acceptedCount} accepted — alarm`);
+    playAlarm();
+  }
 
   // Hit the cap on successful accepts? Stop now — no reason to keep polling
   // (also cuts request footprint once the day's target is met).

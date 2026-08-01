@@ -262,7 +262,8 @@ async function checkOrders() {
         // New ApprID(s) → burst to FAST to catch the rest of the bulk.
         // Timer resets on every new order, chaining a cluster together.
         fastUntil = Date.now() + FAST_LINGER_MS;
-        if (count > lastCount) playAlarm(); // alarm only on genuine arrivals
+        // (Audio alarm moved to background — fires only on a SUCCESSFUL accept,
+        //  not on raw detection. Logged-out alarm still lives above.)
         const { acceptType = 'exterior', keywordFilter = '', excludeFilter = '', acceptChance = 100 } =
           await chrome.storage.local.get(['acceptType', 'keywordFilter', 'excludeFilter', 'acceptChance']);
         const filtered = filterByExcludeKeyword(
